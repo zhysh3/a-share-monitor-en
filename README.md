@@ -8,7 +8,7 @@ Built entirely with AI, with no hand-written code.
 
 ![Dashboard](docs/screenshot.png)
 
-> 📊 [Full-length screenshot (ETF flows, sector heatmap, decision model)](docs/screenshot-full.png)
+> 📊 More screenshots: [ETF flows by category](docs/screenshot-flows.png) · [two-layer decision model](docs/screenshot-decision.png)
 
 > ⚠️ For research and learning only. Nothing here is investment advice.
 
