@@ -1,0 +1,2092 @@
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>A-Share Risk Monitor v11</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+:root{
+  --bg:#f0f2f5;--bg2:#fff;--bg3:#e8ecf2;
+  --border:rgba(0,0,0,.07);--border2:rgba(0,0,0,.14);
+  --text:#1a202c;--muted:#718096;
+  --accent:#1d5fd4;--ok:#0a7c52;--warn:#9a5e00;--danger:#b91c1c;
+  --ok-bg:#e6f6f0;--ok-bd:#9ee6c8;--warn-bg:#fef9ec;--warn-bd:#f5cc6a;
+  --danger-bg:#fef2f2;--danger-bd:#fca5a5;
+  --mono:'JetBrains Mono',monospace;--sans:'Noto Sans SC',sans-serif;
+  --r:10px;--sh:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:.7rem 2rem;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.06em}
+.logo em{color:var(--muted);font-style:normal;font-weight:400}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-live{background:#16a34a;animation:blink 2s infinite}.dot-cache{background:#d97706;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.ts{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.btn{font-family:var(--mono);font-size:11px;padding:4px 12px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--muted);cursor:pointer;transition:all .18s;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent);background:#eef3fd}
+.btn-ai{border-color:#c7d7fa;color:#1e40af;background:#f0f4ff}
+.btn-ai.running{background:#3730a3;color:#fff;border-color:#3730a3;cursor:wait}
+.auto-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:.4rem 2rem;display:flex;align-items:center;gap:12px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.auto-bar label{font-weight:500;color:#374151}
+.auto-bar select{font-size:11px;padding:2px 6px;border:1px solid var(--border2);border-radius:5px;background:var(--bg2);color:var(--text);font-family:var(--mono);cursor:pointer}
+.prog-wrap{flex:0 0 160px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.prog-bar{height:100%;background:var(--accent);border-radius:2px;transition:width .3s linear;width:0%}
+.next-lbl{font-family:var(--mono);font-size:10px;color:var(--accent);min-width:70px}
+.tab-nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;position:sticky;top:53px;z-index:19}
+.tab-nav-btn{font-family:var(--sans);font-size:13px;padding:.65rem 1.25rem;border:none;background:transparent;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .18s;white-space:nowrap}
+.tab-nav-btn:hover{color:var(--text)}.tab-nav-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.page{max-width:1440px;margin:0 auto;padding:1.25rem 1.75rem 3rem}
+.erp-banner{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:1rem 1.5rem;margin-bottom:1rem;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:2rem}
+.erp-formula{font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.9}
+.erp-val{font-family:var(--mono);font-size:24px;font-weight:700;margin-top:2px}
+.pct-track{height:7px;background:var(--bg3);border-radius:4px;position:relative;overflow:visible}
+.pct-grad{height:100%;border-radius:4px;background:linear-gradient(90deg,#16a34a 0%,#eab308 60%,#dc2626 100%)}
+.pct-needle{position:absolute;top:-5px;width:3px;height:17px;background:#1a202c;border-radius:2px;transform:translateX(-50%);box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left 1s ease}
+.pct-ticks{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+.erp-pct-big{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1}
+.erp-pct-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.fnote{margin-top:10px;padding:9px 12px;background:#f8faff;border:1px solid #dbeafe;border-radius:7px;font-size:10.5px;color:#374151;line-height:1.85}
+.fnote strong{color:#1e3a8a}.fn-item{margin-top:5px;padding-left:10px;border-left:2px solid #93c5fd}
+.fn-item.sell{border-left-color:#fca5a5}.fn-item.buy{border-left-color:#6ee7b7}
+.fn-danger{color:var(--danger);font-weight:600}.fn-ok{color:var(--ok);font-weight:600}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1rem}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:.7rem .9rem;transition:box-shadow .18s,border-color .3s;position:relative}
+.mc:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.mc.ai-corrected{border-color:#f97316;animation:flash-correct .8s ease}
+@keyframes flash-correct{0%{background:rgba(249,115,22,.15)}100%{background:transparent}}
+.mc.ai-verified{border-color:#a5b4fc}.mc.ai-verifying{border-color:#6366f1;animation:pulse-border 1s ease infinite}
+@keyframes pulse-border{0%,100%{border-color:#a5b4fc}50%{border-color:#6366f1}}
+.mc-l{font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.mc-v{font-family:var(--mono);font-size:19px;font-weight:700;line-height:1}
+.mc-s{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
+.mc-fn{font-size:9.5px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);line-height:1.65}
+.c-ok{color:var(--ok)}.c-warn{color:var(--warn)}.c-danger{color:var(--danger)}.c-accent{color:var(--accent)}.c-muted{color:var(--muted)}
+.corr-tag{display:inline-block;font-size:8px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:3px;padding:0 4px;margin-left:4px;font-family:var(--mono);vertical-align:middle}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:1rem 1.25rem}
+.card-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em}
+.row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem;margin-bottom:1rem}
+.row3b{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+.full{margin-bottom:1rem}
+.iv-bar{display:flex;height:13px;border-radius:4px;overflow:hidden;margin:6px 0 3px}
+.iv-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600}
+.iv-ok{flex:3;background:#dcfce7;color:#166534}.iv-norm{flex:4;background:#fef3c7;color:#92400e}.iv-hot{flex:3;background:#fee2e2;color:#991b1b}
+.etf-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)}
+.etf-item:last-child{border-bottom:none}
+.etf-note{font-size:10px;margin-top:8px;padding:6px 10px;background:#fef9ec;border-radius:6px;border-left:2px solid var(--warn-bd);color:#8a5200;line-height:1.7}
+.sec-table{width:100%;border-collapse:collapse;font-size:11px}
+.sec-table th{font-size:10px;font-weight:600;color:var(--muted);text-align:left;padding:4px 6px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.04em;cursor:pointer}
+.sec-table th:hover{color:var(--accent)}
+.sec-table td{padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:middle}
+.sec-table tr:last-child td{border-bottom:none}.sec-table tr:hover td{background:var(--bg3)}
+.bar-wrap{width:70px;height:7px;background:var(--bg3);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}
+.bar-pos{height:100%;border-radius:4px;background:#0a7c52}.bar-neg{height:100%;border-radius:4px;background:#b91c1c;float:right}
+.sec-tab-row{display:flex;gap:4px;margin-bottom:10px}
+.sec-tab-btn{font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.sec-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.vbadge{display:inline-flex;align-items:center;font-size:9px;padding:2px 7px;border-radius:10px;font-family:var(--mono);font-weight:600}
+.vb-est{background:#fef3c7;color:#92400e}.vb-live{background:#dbeafe;color:#1e40af}.vb-ok{background:#dcfce7;color:#166534}
+.ai-panel{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:1rem;position:relative;overflow:hidden}
+.ai-panel::before{content:'';position:absolute;inset:0 0 auto;height:2px;background:linear-gradient(90deg,#6366f1,#8b5cf6,#06b6d4,#6366f1);background-size:200%;animation:shimmer 2s linear infinite}
+@keyframes shimmer{to{background-position:200% 0}}
+.ai-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ai-title{font-size:11px;font-weight:700;color:#4c1d95;font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.ver-tbl{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px}
+.ver-tbl th{font-size:9px;font-weight:700;color:#5b21b6;padding:3px 7px;background:rgba(99,102,241,.12);text-align:left;font-family:var(--mono)}
+.ver-tbl td{padding:4px 7px;border-bottom:1px solid rgba(99,102,241,.12);font-family:var(--mono);vertical-align:top}
+.ver-tbl tr:last-child td{border-bottom:none}
+.st-match{color:var(--ok);font-weight:700}.st-diff{color:var(--warn);font-weight:700}.st-corr{color:#ea580c;font-weight:700}
+.ai-thinking{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:11px;color:#5b21b6;font-family:var(--mono)}
+.dots span{display:inline-block;width:5px;height:5px;background:#6366f1;border-radius:50%;margin:0 1.5px;animation:dp 1.2s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes dp{0%,80%,100%{transform:scale(.3);opacity:.3}40%{transform:scale(1);opacity:1}}
+.src-tag{font-size:8px;background:#ede9fe;color:#5b21b6;padding:1px 5px;border-radius:3px;font-family:var(--mono);white-space:nowrap}
+.ai-ts-sm{font-size:9px;color:#7c3aed;font-family:var(--mono);opacity:.8}
+/* Decision tab */
+.dm-page{max-width:1440px;margin:0 auto;padding:1.25rem 1.75rem 3rem}
+.funnel-wrap{display:flex;flex-direction:column;gap:0}
+.layer-connector{display:flex;align-items:center;justify-content:center;padding:6px 0;gap:10px}
+.layer-connector-line{flex:1;height:1px;background:var(--border2)}
+.layer-connector-label{font-size:10px;color:var(--muted);white-space:nowrap;font-family:var(--mono)}
+.layer-tag{color:#fff;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
+.layer1-card{border-radius:var(--r);border:2px solid;overflow:hidden;transition:border-color .5s,background .5s}
+.layer1-header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;transition:background .5s}
+.layer1-body{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr 180px;gap:16px;align-items:center}
+.traffic-light{display:flex;gap:8px;align-items:center}
+.tl-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(0,0,0,.1)}
+.tl-active-green{background:#16a34a;box-shadow:0 0 10px rgba(22,163,74,.6)}
+.tl-active-red{background:#dc2626;box-shadow:0 0 10px rgba(220,38,38,.6);animation:pulse-red 1.5s ease infinite}
+@keyframes pulse-red{0%,100%{box-shadow:0 0 6px rgba(220,38,38,.5)}50%{box-shadow:0 0 16px rgba(220,38,38,.9)}}
+.tl-inactive{background:var(--bg3)}
+.l1-impulse-val{font-family:var(--mono);font-size:32px;font-weight:700;line-height:1}
+.l1-sub{font-size:11px;margin-top:4px;line-height:1.7}
+.l1-result-box{padding:10px 12px;border-radius:8px;text-align:center;transition:all .4s;border:1px solid}
+.layer2-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:1rem 1.25rem}
+.layer2-body{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.layer3-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--sh);padding:0;overflow:hidden}
+.layer3-header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.layer3-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.l3-col{padding:14px 16px}.l3-col:first-child{border-right:1px solid var(--border)}
+.l3-metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.l3-val{font-family:var(--mono);font-size:24px;font-weight:700;line-height:1;transition:color .4s}
+.alert-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:var(--mono);border:1px solid}
+.alert-chip.triggered{background:#fee2e2;color:#991b1b;border-color:#fca5a5;animation:flash-alert 1s ease infinite}
+.alert-chip.standby{background:var(--bg3);color:var(--muted);border-color:var(--border2)}
+@keyframes flash-alert{0%,100%{opacity:1}50%{opacity:.5}}
+.alert-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.signal-chart-wrap{border-top:1px solid var(--border);padding:14px 16px}
+.decision-output{border-radius:var(--r);border:2px solid;padding:1rem 1.25rem;transition:all .5s}
+.do-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.do-cell{background:var(--bg3);border-radius:8px;padding:10px 12px;text-align:center}
+.do-cell-label{font-size:10px;color:var(--muted);margin-bottom:4px}
+.do-cell-val{font-family:var(--mono);font-size:15px;font-weight:700}
+.do-cell-sub{font-size:9px;color:var(--muted);margin-top:2px}
+.position-box{padding:12px 16px;border-radius:8px;border:1px solid;transition:all .5s}
+.pos-label{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em}
+.pos-val{font-family:var(--mono);font-size:24px;font-weight:700;margin-bottom:4px}
+.pos-desc{font-size:12px;line-height:1.7}
+.dm-badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:12px;font-weight:600;border:1px solid}
+.dmb-ok{background:#eaf3de;color:#3b6d11;border-color:#97c459}.dmb-warn{background:#faeeda;color:#854f0b;border-color:#ef9f27}
+.dmb-danger{background:#fcebeb;color:#a32d2d;border-color:#f7c1c1}.dmb-neutral{background:var(--bg3);color:var(--muted);border-color:var(--border2)}
+.pbar-row{margin-bottom:8px}
+.pbar-label-row{display:flex;justify-content:space-between;margin-bottom:3px}
+.pbar-label{font-size:11px;color:var(--muted)}.pbar-val{font-family:var(--mono);font-size:12px;font-weight:600}
+.pbar-track{height:7px;border-radius:4px;overflow:hidden}.pbar-fill{height:100%;border-radius:4px;transition:width .8s ease}
+.loader{position:fixed;inset:0;background:#f0f2f5;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity .4s}
+.loader.gone{opacity:0;pointer-events:none}
+.ring{width:36px;height:36px;border:3px solid #dde2ea;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lmsg{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.lstep{font-size:10px;color:#9ca3af;margin-top:6px;font-family:var(--mono)}
+.dnote{font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.8;padding:.75rem 1rem;background:var(--bg2);border-radius:var(--r);border-left:3px solid var(--accent);margin-top:1rem}
+.fi{animation:fadein .45s ease both}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes flash-in{0%{background:rgba(99,102,241,.15)}100%{background:transparent}}
+.mc.just-updated{animation:flash-in .8s ease}
+@media(max-width:960px){
+  .metrics{grid-template-columns:repeat(3,1fr)}
+  .row3,.row3b{grid-template-columns:1fr}
+  .erp-banner,.layer1-body,.layer2-body,.layer3-body,.do-row{grid-template-columns:1fr;gap:1rem}
+}
+</style>
+</head>
+<body>
+<div class="loader gone" id="loader"><div class="ring"></div><div class="lmsg" id="lmsg">Initializing...</div><div class="lstep" id="lstep"></div></div>
+
+<header class="hdr">
+  <div><div class="logo">A-RISK<em>/MONITOR</em></div><div style="font-size:9px;color:#6366f1;font-family:var(--mono);margin-top:1px">v11 · price-volume scatter · margin 2nd derivative · four-zone map</div></div>
+  <div class="hdr-r">
+    <div class="dot dot-cache" id="sdot"></div><span class="ts" id="stxt">cached 32m ago</span><span class="ts" id="ts">4/25 00:40:33</span>
+    <button class="btn btn-ai" id="btn-ai" onclick="runAIVerify()">🤖 AI Verify</button>
+    <button class="btn" onclick="loadData(true)">↻ Refresh</button>
+    <button class="btn" id="btn-dl" onclick="downloadHTML()" style="border-color:#0ea5e9;color:#0ea5e9" title="Download and open locally in a browser to get live data">⬇ Download local version</button>
+  </div>
+</header>
+
+<div class="auto-bar">
+  <label>Auto refresh</label>
+  <select id="sel-refresh" onchange="applyRefreshSetting()">
+    <option value="0">Off</option><option value="300">5 min</option><option value="1800">30 min</option><option value="eod" selected="">Close only (16:05)</option>
+  </select>
+  <div class="prog-wrap" id="pw" style="display:none"><div class="prog-bar" id="pb" style="width: 0%;"></div></div>
+  <span class="next-lbl" id="nxt-lbl">→16:05</span>
+  <span style="margin-left:8px;color:#374151;font-weight:500">AI Verify</span>
+  <select id="sel-ai" onchange="applyAISetting()">
+    <option value="0">Off</option><option value="auto">after each refresh</option><option value="3600">Every 1 hour</option><option value="eod" selected="">After close only</option>
+  </select>
+  <span class="ai-ts-sm" id="ai-last-ts" style="margin-left:4px"></span>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-nav-btn active" onclick="switchTab('classic')">📊 Market Monitor</button>
+  <button class="tab-nav-btn" onclick="switchTab('decision')">🎯 Decision Model</button>
+</div>
+
+<!-- ══════ TAB 1: Market Monitor ══════ -->
+<div class="tab-panel active" id="tab-classic">
+<div class="page" id="pg" style="opacity: 1;">
+  <div class="erp-banner fi">
+    <div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:3px">Equity Risk Premium</div>
+      <div class="erp-formula">ERP = 1/PE(TTM) − r<sub>10Y</sub> = <span id="erp-detail">1/16.87 − 1.78%</span></div>
+      <div style="margin-top:6px;display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:11px;color:var(--muted)">Current ERP</span>
+        <span class="erp-val c-ok" id="erp-val">4.15%</span>
+        <span class="vbadge vb-est">est.</span>
+        <span id="erp-corr-tag" style="display:none" class="corr-tag">AI corrected</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:5px">5-year historical percentile</div>
+      <div class="pct-track"><div class="pct-grad" id="pct-grad" style="width: 43%;"></div><div class="pct-needle" id="pct-needle" style="left: 43%;"></div></div>
+      <div class="pct-ticks"><span>0%</span><span>Low</span><span>50%</span><span>High</span><span style="color:var(--danger)">90% Super bottom▶</span><span>100%</span></div>
+    </div>
+    <div style="text-align:right"><div class="erp-pct-big c-ok" id="erp-pct">43%</div><div class="erp-pct-sub">5-yr pct</div></div>
+  </div>
+  <div class="fnote fi" style="animation-delay:.03s;margin-top:-6px;margin-bottom:1rem">
+    <strong>ERP How to read</strong>
+    <div class="fn-item sell"><span class="fn-danger">🔴 Top signal:</span> ERP percentile&lt;20%: stocks very expensive, reduce exposure.</div>
+    <div class="fn-item buy"><span class="fn-ok">🟢 Trend:</span> ERP percentile&gt;70% and starting to fall: safe buying zone.</div>
+  </div>
+  <div class="metrics fi" style="animation-delay:.05s">
+    <div class="mc just-updated" id="mc-pe"><div class="mc-l">Wind All-A PE <span class="vbadge vb-est">public value</span><span id="pe-corr-tag" class="corr-tag" style="display:none">AI corrected</span></div><div class="mc-v c-accent" id="m-pe">16.87x</div><div class="mc-s" id="m-pe-s">Wind All-A</div></div>
+    <div class="mc just-updated" id="mc-bond"><div class="mc-l">10Y treasury <span class="vbadge vb-est">public value</span><span id="bond-corr-tag" class="corr-tag" style="display:none">AI corrected</span></div><div class="mc-v c-muted" id="m-bond">1.78%</div><div class="mc-s" id="m-bond-s">China 10Y Treasury</div></div>
+    <div class="mc just-updated" id="mc-pb"><div class="mc-l">Below-Book Ratio <span class="vbadge vb-est">est.</span></div><div class="mc-v c-warn" id="m-pb">9.1%</div><div class="mc-s" id="m-pb-s">threshold 10%</div><div class="mc-fn">above<strong style="color:var(--danger)">10–15%</strong>has historically marked major bear-market bottoms.</div></div>
+  </div>
+  <div class="row3 fi" style="animation-delay:.1s">
+    <div class="card">
+      <div class="card-title">Market Turnover × Turnover Rate</div>
+      <div id="vol-verify" style="font-size:10px;color:var(--muted);margin-bottom:6px;font-family:var(--mono)" title="Source: static+sector live">4/25≈2.63 T | 4/23≈2.60 T | 4/22≈2.53 T | 4/21≈2.48 T | 7 days in a row&gt;2 T ⚠top-signal zone</div>
+      <div style="position:relative;height:170px"><canvas id="c-vol" style="box-sizing: border-box; display: block; height: 170px; width: 645px;" width="967" height="255"></canvas></div>
+      <div class="fnote" style="margin-top:10px">
+        <strong>Reading guide</strong>
+        <div class="fn-item sell"><span class="fn-danger">🔴 Top signal:</span> record turnover while the index stalls means big money is distributing. Cut exposure decisively.</div>
+        <div class="fn-item buy"><span class="fn-ok">🟢 Trend:</span> moderate volume growth is healthy; low-volume pullbacks are chances to add.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">10Y Treasury Yield Trend</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span class="mc-v c-muted" id="bond-big">1.78%</span><span id="bond-delta-badge" style="font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--danger);">Δ+0%</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px" id="bond-slope-lbl">MA5 Slope -0.018%  ↓Falling rates support ERP</div>
+      <div style="position:relative;height:150px"><canvas id="c-bond-trend" style="box-sizing: border-box; display: block; height: 150px; width: 304px;" width="456" height="225"></canvas></div>
+      <div style="margin-top:8px;display:flex;gap:14px;font-size:10px;flex-wrap:wrap">
+        <span style="color:var(--muted)">-day chg <strong id="bond-d1" style="font-family: var(--mono); color: var(--danger);">+0%</strong></span>
+        <span style="color:var(--muted)">-week chg <strong id="bond-w1" style="font-family: var(--mono); color: var(--ok);">-0.07%</strong></span>
+        <span style="color:var(--muted)">MA5 <strong id="bond-ma5" style="font-family:var(--mono)">1.798%</strong></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">CSI 300 30-Day Historical Volatility (HV30)</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin:6px 0 4px"><span style="font-family:var(--mono);font-size:36px;font-weight:700" id="iv-val-big">--</span><span id="iv-src-badge" style="font-size:9px;padding:2px 6px;border-radius:3px;font-family:var(--mono);background:#fef3c7;color:#92400e">static</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">5-yr pct <strong id="iv-pct">--</strong>% · <span id="iv-regime">--</span></div>
+      <div style="position:relative;margin-top:10px"><div class="iv-bar"><div class="iv-seg iv-ok">&lt;15%</div><div class="iv-seg iv-norm">15-25%</div><div class="iv-seg iv-hot">&gt;30%</div></div><div id="iv-needle" style="position:absolute;top:0;width:2px;height:13px;background:#1a202c;border-radius:1px;transform:translateX(-50%);transition:left 1s;left:37%"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:3px"><span>10%</span><span>15%</span><span>20%</span><span>25%</span><span>30%</span><span>40%</span></div>
+
+      <div style="margin-top:12px;background:var(--bg3);border-radius:6px;padding:9px 11px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Daily conversion · execution reference</div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:7px">
+          <span style="font-size:11px;color:var(--muted)">avg daily move</span>
+          <span style="font-family:var(--mono);font-size:19px;font-weight:700" id="iv-daily">--</span>
+          <span style="font-size:10px;color:var(--muted)">= HV30 ÷ √252</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:7px" id="iv-sigma-grid"></div>
+        <div style="font-size:10px;color:var(--muted);line-height:1.7" id="iv-stop-note"></div>
+      </div>
+
+      <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.7">annualized vol σ×√252, based on CSI 300 daily candles.<span style="color:#94a3b8">Describes how bumpy the market is only; <strong>does not predict direction</strong> (backtest 6M IC −0.14, removed from the decision model).</span><br><span id="iv-interp" style="color:var(--text)">--</span></div>
+    </div>
+  </div>
+  <div class="row3b fi" style="animation-delay:.15s">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="card-title" style="margin:0">Credit Impulse (1st derivative of social financing stock YoY)</div><span class="vbadge vb-ok">PBoC · monthly · published ~15th</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.7">Δ(TSF stock YoY) = this month’s YoY minus last month’s.<strong style="color:var(--text)">2 months in a rowΔ&gt;0=confirms bullish, leads A-shares by ~6-12 months</strong> (backtest 2016-present, 119 months, IC≈+0.27, hit rate ~60%).</div>
+      <div id="sf-verify" style="font-size:10px;color:var(--muted);font-family:var(--mono);background:var(--bg3);border-radius:6px;padding:6px 10px;margin-bottom:8px;line-height:1.8"><strong>TSF stock growth (PBoC):</strong>25-11:7.9% | 25-12:8.3% | 26-01:8.2% | 26-02:8.2% | 26-03:7.9%<br>Latest: 26-03 = <strong>7.9%</strong> <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:#fef3c7;color:#92400e">static fallback</span></div>
+      <div style="position:relative;height:130px"><canvas id="c-credit" style="box-sizing: border-box; display: block; height: 130px; width: 418px;" width="627" height="195"></canvas></div>
+      <div style="margin-top:8px;display:flex;gap:16px;font-size:11px">
+        <span>Current Δ:<strong id="ci-now" style="font-family: var(--mono); color: var(--danger);">-0.30</strong></span>
+        <span>Prior Δ:<strong id="ci-prev" style="font-family:var(--mono)">0.00</strong></span>
+        <span>Status:<strong id="ci-trend" style="color: var(--muted);">Not triggered</strong></span>
+      </div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin:0">Margin Balance Change + Momentum ROC</div><span id="margin-src-badge" class="vbadge" style="background:#fef3c7;color:#92400e;border:1px solid #f5cc6a">static fallback</span></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;line-height:1.7">Balance accelerating + index stalling=<strong style="color:var(--text)">leverage overheating warning.</strong></div>
+      <div style="position:relative;height:110px"><canvas id="c-margin" style="box-sizing: border-box; display: block; height: 110px; width: 418px;" width="627" height="165"></canvas></div>
+      <div style="font-size:10px;font-weight:600;color:var(--muted);margin:6px 0 3px;text-transform:uppercase;letter-spacing:.04em">Slope momentum ROC (2nd derivative)<span style="font-weight:400;margin-left:6px;color:var(--muted);font-size:9px">Slope still positive but ROC turning down → cleanest exit point</span></div>
+      <div style="position:relative;height:70px"><canvas id="c-margin-roc" style="box-sizing: border-box; display: block; height: 70px; width: 418px;" width="627" height="105"></canvas></div>
+      <div style="margin-top:6px;display:flex;gap:14px;font-size:11px;flex-wrap:wrap">
+        <span>Balance:<strong id="mg-bal" style="font-family:var(--mono)">1.58 T</strong></span>
+        <span>Slope:<strong id="mg-slope" title="Z score=-0.71σ(series mean: 0.36%)" style="color: var(--danger);">-0.40%</strong></span>
+        <span>ROC: <strong id="mg-roc" style="font-family: var(--mono); color: rgb(10, 124, 82);">+0.700</strong></span>
+      </div>
+    </div>
+  </div>
+  <div class="card full fi" style="animation-delay:.18s">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:10px"><div class="card-title" style="margin:0">ETF Flows by Category · 60-Day</div><span class="vbadge vb-ok">SSE · quarterly window · cached 1h</span></div>
+      <div style="font-size:10px;color:var(--muted)" id="etf-cat-dates">loading...</div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">
+      60-day window = mutual fund quarterly rebalancing cycle. <strong>Sorted by net change</strong>: top-left = largest inflow, bottom-right = largest outflow.<br>Source: SSE ETF shares. Categories are assigned by keywords in fund names; “Other” is down to about 2%.
+    </div>
+    <div id="etf-cat-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:6px;margin-bottom:10px">loading...</div>
+    <details style="font-size:10.5px;color:var(--muted);line-height:1.7;background:var(--bg3);border-radius:6px;padding:8px 12px">
+      <summary style="cursor:pointer;font-weight:600;color:var(--text);font-size:11px">📖 What each ETF category covers</summary>
+      <div style="margin-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:9px 16px">
+        <div><strong style="color:#dc2626">Broad-based</strong><br>CSI 300/CSI 500/SSE 50/CSI 1000/A500/STAR 50/ChiNext/SSE Composite. Allocation tools, long-term holds</div>
+        <div><strong style="color:#7c3aed">Semiconductors</strong><br>Chip design/equipment/materials/memory/packaging/STAR chips. Most upstream in tech, highest beta</div>
+        <div><strong style="color:#7c3aed">AI Compute</strong><br>AI/compute/cloud/big data/digital economy/robotics/data centers</div>
+        <div><strong style="color:#2563eb">Software & Telecom</strong><br>Software/computers/domestic IT/cybersecurity/telecom/5G/IoT/gaming & media/internet</div>
+        <div><strong style="color:#0a7c52">Healthcare</strong><br>Pharma/healthcare/innovative drugs/CXO/devices/vaccines/TCM/genomics</div>
+        <div><strong style="color:#ea580c">Consumer</strong><br>Baijiu/food & beverage/appliances & home/travel & duty-free/retail/apparel/agriculture</div>
+        <div><strong style="color:#0891b2">Financials & Property</strong><br>Banks/brokers/insurance/real estate/REITs</div>
+        <div><strong style="color:#16a34a">New Energy & Power</strong><br>EVs/batteries/solar/storage/wind/grid & power/green & nuclear/hydrogen</div>
+        <div><strong style="color:#a16207">Cyclicals & Resources</strong><br>Nonferrous/coal/steel/chemicals/mining/rare earths/oil & petrochem/building materials</div>
+        <div><strong style="color:#475569">Defense & Manufacturing</strong><br>Defense/aerospace/satellites/shipbuilding/machinery/specialized SMEs/machine tools</div>
+        <div><strong style="color:#475569">Autos & Transport</strong><br>Automakers/parts/logistics/ports & shipping/rail & road</div>
+        <div><strong style="color:#0a7c52">Style Factors</strong><br>Dividend low-vol/value/growth/quality/momentum/ESG/free cash flow</div>
+        <div><strong style="color:#dc2626">Cross-border</strong><br>Hang Seng Tech/China internet/Nasdaq 100/S&P 500/Nikkei/DAX and other HK, US and overseas</div>
+        <div><strong style="color:#6b7280">Bonds & Cash</strong><br>Convertibles/treasuries/policy bank/credit/money market</div>
+        <div><strong style="color:#a16207">Commodities</strong><br>Gold/silver/crude/soymeal/energy & chemicals</div>
+        <div><strong style="color:#9a3412">Enhanced Index</strong><br>Tracks broad indices + quant alpha (+1-3% annualized), e.g. CSI 300/500 enhanced</div>
+      </div>
+      <div style="margin-top:9px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:#94a3b8;line-height:1.7">
+        Categories come from keyword matching on fund names; sector themes take priority over broad-based (so “STAR Materials” goes to semiconductors and “SSE STAR” to broad-based).
+        The old regex required the full words for “semiconductor” and “chip”, which missed abbreviated fund names,
+        and had no AI/5G/software/grid keywords, so many tech ETFs landed in “Other”. “Other” is now about 2%.
+      </div>
+      </div>
+    </details>
+  </div>
+  <div class="card full fi" style="animation-delay:.2s">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px"><div class="card-title" style="margin:0">Shenwan L1 Sectors · 60-Day Return Heatmap</div><span class="vbadge vb-ok">31 sectors · close · cached 30min</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:8px">
+      <strong style="color:#dc2626">Dark red ≥+25% overstretched</strong> ·
+      <strong style="color:#9a3412">Orange +5~15% strong</strong> ·
+      Gray ±5% neutral ·
+      <strong style="color:#14532d">Light green -5~-15% cool</strong> ·
+      <strong style="color:#166534">Dark green ≤-15% potential launch zone</strong>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px" id="hm"><div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px;font-size:11px">Loading sector data...</div></div>
+  </div>
+  <div class="ai-panel fi" style="animation-delay:.23s">
+    <div class="ai-hdr">
+      <div class="ai-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5b21b6" stroke-width="2.2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+        Claude AI Market Data Cross-Check · Auto-Correct Differences
+      </div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="ai-ts-sm" id="ai-verify-ts"></span><button class="btn btn-ai" style="padding:3px 9px;font-size:10px" onclick="runAIVerify()">Verify now</button></div>
+    </div>
+    <div id="ai-body"><div style="font-size:11px;color:#5b21b6;font-family:var(--mono);padding:3px 0;line-height:1.8">Click “AI Verify” and Claude searches the web for the latest data. <strong>Differences&gt;2% are auto-corrected</strong> on the dashboard.</div></div>
+  </div>
+  <div class="dnote fi" style="animation-delay:.26s">
+    <strong>Sources</strong>: PE/PB/treasury/margin/ETF from Eastmoney live APIs; social financing and sector flows from the Eastmoney data center; HV30 from Sina candles (proxy required); Miaoxiang API as a supplement. <strong>AI Verify</strong>: differences&gt;2%<span style="color:#ea580c;font-weight:600">auto-corrected</span>.<br>
+    <span id="cnote" style="color:var(--accent)">Cached data (32 min ago).</span>
+  </div>
+</div>
+</div>
+
+<!-- ══════ TAB 2: Decision Model ══════ -->
+<div class="tab-panel" id="tab-decision">
+<div class="dm-page" id="dmpg" style="opacity: 1;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <div><div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:3px">Two-Layer Funnel Decision Model</div><div style="font-size:11px;color:var(--muted)">Strategic warning → Safety margin · <span id="dm-freshness" style="font-family:var(--mono)">Checking data freshness…</span></div></div>
+    <div style="display:flex;align-items:center;gap:8px" id="dm-top-badges"><span class="dm-badge dmb-warn">Overall risk 44%</span> <span class="dm-badge dmb-warn">Medium risk</span></div>
+  </div>
+  <div class="funnel-wrap">
+    <div class="fi">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="layer-tag" style="background:#1d5fd4">Layer 1</div>
+        <span style="font-size:13px;font-weight:500">Strategic Warning</span>
+        <span style="font-size:11px;color:var(--muted)">— Sets direction: is credit expansion or contraction confirmed?</span>
+        <span style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-left:auto">leads the market by ~6-12 months (IC≈+0.27)</span>
+      </div>
+      <div class="layer1-card" id="l1-card" style="border-color:#94a3b8;background:#f8fafc">
+        <div class="layer1-header" id="l1-header" style="background:rgba(148,163,184,.08)">
+          <div><div style="font-size:11px;font-weight:600;font-family:var(--mono)">Credit Impulse (1st derivative of social financing stock YoY)</div><div style="font-size:11px;margin-top:3px;color:#64748b" id="l1-status-text">Not triggered — 1st derivative hasn’t held the same sign for 2 months; direction unconfirmed</div></div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <div class="traffic-light"><div class="tl-dot tl-inactive" id="tl-green"></div><div class="tl-dot tl-inactive" id="tl-red"></div></div>
+            <span id="l1-badge-top"><span class="dm-badge" style="background:#e2e8f0;color:#475569">⚪ Not triggered</span></span>
+          </div>
+        </div>
+        <div class="layer1-body">
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)">Current Δ(TSF YoY)</div>
+            <div class="l1-impulse-val" id="l1-big-val" style="color:#64748b">-0.30</div>
+            <div class="l1-sub" id="l1-sub-text"><strong style="color:#475569">Conclusion: bullish not triggered.</strong> Waiting for 2 consecutive months ofΔ&gt;0 to confirm expansion, or consecutiveΔ&lt;0 to confirm contraction.</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Last 10 periods of Δ</div>
+            <svg id="l1-spark" viewBox="0 0 200 50" width="100%" height="50" preserveAspectRatio="none"><line x1="0" y1="25" x2="200" y2="25" stroke="#718096" stroke-width=".5" stroke-opacity=".3"></line></svg>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:2px"><span>-10 periods</span><span>now</span></div>
+          </div>
+          <div class="l1-result-box" id="l1-result-box" style="background:#f1f5f9;border-color:#cbd5e1">
+            <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;color:#475569" id="l1-result-label">Signal status</div>
+            <div style="font-family:var(--mono);font-size:20px;font-weight:700;margin-bottom:4px;color:#475569" id="l1-result-val">Not triggered</div>
+            <div style="font-size:10px;line-height:1.6" id="l1-result-desc">Waiting for data</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="layer-connector"><div class="layer-connector-line"></div><span class="layer-connector-label">▼ Layer 1 sets direction → Layer 2 sets the size of the safety cushion</span><div class="layer-connector-line"></div></div>
+    <div class="fi" style="animation-delay:.07s">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="layer-tag" style="background:#0a7c52">Layer 2</div>
+        <span style="font-size:13px;font-weight:500">Medium-Term Safety Margin</span>
+        <span style="font-size:11px;color:var(--muted)">— Valuation-crowding scatter: dashboard turns red when the dot enters the danger zone</span>
+      </div>
+      <div class="layer2-card">
+        <div class="layer2-body">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Valuation-Crowding Scatter</div>
+            <div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.7">X axis = ERP percentile (lower = pricier) · Y axis = turnover percentile (higher = more crowded)<br><span style="color:#dc2626;font-weight:600">Red zone = low ERP + high turnover = extreme crowding, strong signal to reduce</span></div>
+            <div style="position:relative;height:220px"><canvas id="c-scatter" style="box-sizing: border-box; display: block; height: 0px; width: 0px;" width="0" height="0"></canvas></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Current reading</div>
+            <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;margin-bottom:10px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px">Crowding composite score</div>
+              <div style="font-family: var(--mono); font-size: 32px; font-weight: 700; color: rgb(217, 119, 6);" id="pca-score-dm">61</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px">max 100</div>
+            </div>
+            <div class="pbar-row" id="dm2-erp-bar"><div class="pbar-row"><div class="pbar-label-row"><span class="pbar-label">ERP percentile (weight 55%)</span><span class="pbar-val" style="color:var(--text)">43%</span></div><div class="pbar-track" style="background:#b5d4f4"><div class="pbar-fill" style="background:#185fa5;width:43%"></div></div></div></div>
+            <div class="pbar-row" id="dm2-turn-bar"><div class="pbar-row"><div class="pbar-label-row"><span class="pbar-label">Turnover percentile (weight 45%)</span><span class="pbar-val" style="color:#a32d2d">82%</span></div><div class="pbar-track" style="background:#f7c1c1"><div class="pbar-fill" style="background:#a32d2d;width:82%"></div></div></div></div>
+            <div class="l1-result-box" id="l2-interp-box" style="margin-top: 8px; text-align: left; border-color: rgb(217, 119, 6); background: rgb(255, 251, 235);">
+              <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px; color: rgb(217, 119, 6);" id="l2-interp-title">Dot leaning toward danger zone</div>
+              <div style="font-size:11px;line-height:1.75" id="l2-interp-body">Valuation is rich but trading isn’t extremely crowded yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="layer-connector"><div class="layer-connector-line"></div><span class="layer-connector-label">▼ Both layers evaluated → apply position adjustment</span><div class="layer-connector-line"></div></div>
+    <div class="fi" style="animation-delay:.21s">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="layer-tag" style="background:#374151">Decision Output</div>
+        <span style="font-size:13px;font-weight:500">Suggested overall exposure</span>
+      </div>
+      <div class="decision-output" id="dm-decision-output" style="border-color: rgb(217, 119, 6); background: rgb(255, 251, 235);">
+        <div class="do-row" id="dm-do-row"><div class="do-cell"><div class="do-cell-label">Layer 1 · Strategic Warning</div><div class="do-cell-val" style="color:#475569">Not triggered</div><div class="do-cell-sub">TSF 1st derivative</div></div><div class="do-cell"><div class="do-cell-label">Layer 2 · Safety Margin</div><div class="do-cell-val" style="color:#d97706">61 pts</div><div class="do-cell-sub">rich</div></div></div>
+        <div class="position-box" id="dm-pos-box" style="background: rgb(254, 243, 199); border-color: rgb(245, 204, 106);">
+          <div class="pos-label">Exposure suggestion</div>
+          <div class="pos-val" id="dm-pos-val" style="color: rgb(217, 119, 6);">65–80%</div>
+          <div class="pos-desc" id="dm-pos-desc" style="color: rgb(217, 119, 6);">Waiting for data…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reference indicators: formerly “Layer 3 · Tactical Trigger”; backtests showed no predictive power, so removed from the decision chain -->
+    <details class="fi" style="animation-delay:.24s;margin-top:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 16px">
+      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="background:#94a3b8;color:#fff;font-family:var(--mono);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">Reference</span>
+        Tactical indicators (not used in decisions)
+        <span style="font-weight:400;font-size:10px;color:var(--muted)">— Margin Z-score · HV30 percentile</span>
+      </summary>
+      <div style="margin-top:10px;font-size:10.5px;color:var(--muted);line-height:1.75;background:#fef9e7;border-left:3px solid #f0b429;border-radius:4px;padding:8px 12px">
+        <strong style="color:#92400e">⚠ Backtest results (2016-01 ~ 2026-07, 127 months)</strong><br>
+        · <strong>Margin Z ≥ 2σ</strong>: triggered only <strong>5 times</strong> in ten years (3.9%), too sparse to validate; 6M separation +1.13pp and in the opposite direction<br>
+        · <strong>HV30 ≥ 70th pct</strong>: triggered 31 times, 6M separation only <strong>+0.71pp</strong>, continuous IC −0.141; HV30 also ignores direction, so in V-shaped reversals it misreads rebound volatility as risk<br>
+        · Adding Layer 3 made the combined model <strong>worse across the board</strong>: Sharpe 0.41→0.40, max drawdown −32.57%→−33.61%, total return +58.59%→+54.96%<br>
+        <span style="color:#78350f">→ Removed from the decision chain; data below is for observation only</span>
+      </div>
+      <div class="layer3-body" style="border:1px solid var(--border);border-radius:8px;margin-top:10px">
+        <div class="l3-col">
+          <div class="l3-metric-label">Margin slope + ROC 2nd derivative</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span class="l3-val" id="l3-mg-val" style="color:#94a3b8">-0.40</span><span style="font-size:11px;color:var(--muted)">%/M</span></div>
+          <div style="margin-bottom:6px" id="l3-mg-z-row"></div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:6px">ROC: <strong id="l3-roc-val" style="font-family:var(--mono)">+0.000</strong> <span id="l3-roc-note"></span></div>
+          <div id="l3-mg-chip"></div>
+        </div>
+        <div class="l3-col">
+          <div class="l3-metric-label">CSI 300 HV30 percentile</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span class="l3-val" id="l3-iv-val" style="color:#94a3b8">--</span></div>
+          <div style="position:relative;margin-bottom:6px">
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden"><div style="flex:3;background:#c0dd97"></div><div style="flex:4;background:#fac775"></div><div style="flex:3;background:#f7c1c1"></div></div>
+            <div id="l3-iv-needle" style="position:absolute;top:-3px;width:4px;height:16px;background:#1a202c;border-radius:2px;transform:translateX(-50%);transition:left .7s;left:37%"></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:3px"><span>10%</span><span>20%</span><span>30%+</span></div>
+          </div>
+          <div id="l3-iv-chip"></div>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+</div>
+
+<script>
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const EN_NAMES={'农林牧渔':'Agriculture','基础化工':'Basic Chemicals','钢铁':'Steel','有色金属':'Nonferrous Metals','电子':'Electronics','汽车':'Autos','家用电器':'Home Appliances','食品饮料':'Food & Beverage','纺织服饰':'Textiles & Apparel','轻工制造':'Light Manufacturing','医药生物':'Healthcare','公用事业':'Utilities','交通运输':'Transportation','房地产':'Real Estate','商贸零售':'Retail','社会服务':'Consumer Services','银行':'Banks','非银金融':'Non-bank Financials','综合':'Conglomerates','建筑材料':'Building Materials','建筑装饰':'Construction','电力设备':'Power Equipment','机械设备':'Machinery','国防军工':'Defense','计算机':'Computers','传媒':'Media','通信':'Telecom','煤炭':'Coal','石油石化':'Oil & Petrochemicals','环保':'Environmental','美容护理':'Beauty & Personal Care',
+'宽基':'Broad-based','半导体芯片':'Semiconductors','AI算力':'AI Compute','软件通信':'Software & Telecom','消费':'Consumer','金融地产':'Financials & Property','新能源电力':'New Energy & Power','周期资源':'Cyclicals & Resources','军工制造':'Defense & Manufacturing','汽车交运':'Autos & Transport','风格因子':'Style Factors','跨境':'Cross-border','债券货币':'Bonds & Cash','商品':'Commodities','增强指数':'Enhanced Index','其他':'Other'};
+function enName(s){return EN_NAMES[s]||s;}
+
+/* ═══ GLOBALS ═══ */
+const $=id=>document.getElementById(id);
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';
+const CKEY='arisk_v17',CTTL=6*3600*1000;
+// Cache carries a data version stamp gen (= prebuilt JSON’s generated_at). 
+// loadC ; if it differs from the current _prebuiltData  generated_at , it is treated as stale → force refetch.
+// So once cron updates the JSON, the next page load drops the old cache automatically; no manual localStorage.clear() needed.
+const saveC=(d,gen)=>{try{localStorage.setItem(CKEY,JSON.stringify({ts:Date.now(),gen:gen||null,d}));}catch(e){}};
+const loadC=(expectGen)=>{try{
+  const r=JSON.parse(localStorage.getItem(CKEY)||'null');
+  if(!r||Date.now()-r.ts>CTTL)return null;
+  // Data version mismatch (a newer JSON exists) → invalidate
+  if(expectGen!==undefined&&expectGen!==null&&r.gen&&r.gen!==expectGen)return null;
+  return{d:r.d,age:Math.round((Date.now()-r.ts)/60000)};
+}catch(e){return null;}};
+// Lightweight probe of the proxy’s current JSON generated_at (version stamp only, not the full payload), with timeout fallback
+async function probePrebuiltGen(){
+  try{
+    const r=await fetch('http://localhost:8899/prebuilt?_t='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return null;
+    const j=await r.json();
+    return j&&j.generated_at||null;
+  }catch(e){return null;}
+}
+let _aiOverrides={};
+let _prebuiltData=null;
+
+/* ─ Load prebuilt data generated by the Python update script ─
+   file:// protocol blocks fetching local JSON, so we route through localhost:8899/prebuilt.
+   Add timestamp query param + cache:'no-store' double guard against browsers caching old-schema responses.*/
+async function loadPrebuiltJSON(){
+  const ts=Date.now();
+  const tryFetch=async url=>{
+    try{const r=await fetch(url+(url.includes('?')?'&':'?')+'_t='+ts,{cache:'no-store'});
+      return r.ok?await r.json():null;}
+    catch(e){return null;}
+  };
+  let d=null;
+  if(location.protocol!=='file:')d=await tryFetch('./arisk_data.json');
+  if(!d)d=await tryFetch('http://localhost:8899/prebuilt');
+  if(!d)return null;
+  if(d.generated_date){
+    const ageDays=(Date.now()-new Date(d.generated_date).getTime())/864e5;
+    if(ageDays>7)return null;
+  }
+  return d;
+}
+
+/* ═══ DYNAMIC TRADING DAYS ═══ */
+/**
+ * Generate date labels for the last n trading days (skip Sat/Sun)
+ * Count back from today; no future dates
+ * Return format:["M/D", "M/D", ...] length n
+ */
+function genRecentTradingDays(n) {
+  const days = [];
+  const now = new Date();
+  // If today is a weekday it’s included; otherwise start from the previous weekday
+  let cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // If today is a weekend, go back to Friday
+  while (cursor.getDay() === 0 || cursor.getDay() === 6) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while (days.length < n) {
+    // skip weekends
+    if (cursor.getDay() !== 0 && cursor.getDay() !== 6) {
+      days.unshift((cursor.getMonth() + 1) + '/' + cursor.getDate());
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return days;
+}
+
+/**
+ * Generate Date objects for the last n trading days (oldest to newest)
+ */
+function genRecentTradingDates(n) {
+  const dates = [];
+  const now = new Date();
+  let cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  while (cursor.getDay() === 0 || cursor.getDay() === 6) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while (dates.length < n) {
+    if (cursor.getDay() !== 0 && cursor.getDay() !== 6) {
+      dates.unshift(new Date(cursor));
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return dates;
+}
+
+/* ═══ TAB ═══ */
+function switchTab(n){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-nav-btn').forEach(b=>b.classList.remove('active'));
+  $('tab-'+n).classList.add('active');
+  document.querySelectorAll('.tab-nav-btn')[n==='classic'?0:1].classList.add('active');
+  if(n==='decision'&&window._D)renderDecisionModel(window._D);
+}
+
+/* ═══ AUTO-REFRESH ═══ */
+let _timer=null,_raf=null,_interval='eod',_aiInterval='eod',_lastAI=0,_aiOnRefresh=false,_start=0;
+function applyRefreshSetting(){
+  const v=$('sel-refresh').value;clearTimeout(_timer);cancelAnimationFrame(_raf);$('pb').style.width='0%';
+  if(v==='eod'){_interval='eod';schedEOD();$('pw').style.display='none';$('nxt-lbl').textContent='→16:05';}
+  else if(v==='0'){_interval=0;$('pw').style.display='none';$('nxt-lbl').textContent='';}
+  else{_interval=parseInt(v);$('pw').style.display='block';startCountdown(_interval);}
+}
+function applyAISetting(){
+  const v=$('sel-ai').value;
+  if(v==='0'){_aiInterval=0;_aiOnRefresh=false;}
+  else if(v==='auto'){_aiOnRefresh=true;_aiInterval=0;}
+  else if(v==='eod'){_aiInterval='eod';_aiOnRefresh=false;}
+  else{_aiInterval=parseInt(v);_aiOnRefresh=false;}
+}
+function startCountdown(secs){
+  _start=Date.now();
+  function tick(){
+    const el=(Date.now()-_start)/1000,pct=Math.min(100,el/secs*100),rem=Math.max(0,Math.round(secs-el));
+    $('pb').style.width=pct+'%';
+    $('nxt-lbl').textContent=rem>=60?Math.floor(rem/60)+'m'+String(rem%60).padStart(2,'0')+'s':rem+'s then refresh';
+    if(el>=secs){_timer=setTimeout(async()=>{await loadData(true);if(_aiOnRefresh||(typeof _aiInterval==='number'&&_aiInterval>0&&Date.now()-_lastAI>_aiInterval*1000))runAIVerify();if(typeof _interval==='number'&&_interval>0)startCountdown(_interval);},100);cancelAnimationFrame(_raf);return;}
+    _raf=requestAnimationFrame(tick);
+  }
+  cancelAnimationFrame(_raf);_raf=requestAnimationFrame(tick);
+}
+function schedEOD(){
+  const now=new Date(),nx=new Date(now);nx.setHours(16,5,0,0);if(now>=nx)nx.setDate(nx.getDate()+1);
+  $('nxt-lbl').textContent='→'+nx.getHours()+':'+String(nx.getMinutes()).padStart(2,'0');
+  _timer=setTimeout(()=>{loadData(true);if(_aiInterval==='eod'||_aiOnRefresh)runAIVerify();schedEOD();},nx-now);
+}
+
+/* ═══ UTILS ═══ */
+const setL=(t,s='')=>{if($('lmsg'))$('lmsg').textContent=t;if($('lstep'))$('lstep').textContent=s;};
+function mLabels(n){const out=[],now=new Date();for(let i=n-1;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push(MON[d.getMonth()]);}return out;}
+function mc(id,val,sub,cls){const e=$(id);if(e){e.textContent=val;e.className='mc-v '+(cls||'');}const s=$(id+'-s');if(s)s.textContent=sub;}
+function flashMC(id){const e=$(id);if(!e)return;e.classList.remove('just-updated');void e.offsetWidth;e.classList.add('just-updated');}
+function dmBadge(label,scheme){const c={ok:'dmb-ok',warn:'dmb-warn',danger:'dmb-danger',neutral:'dmb-neutral'}[scheme]||'dmb-neutral';return '<span class="dm-badge '+c+'">'+label+'</span>';}
+
+/* ═══ FETCH ═══ */
+async function fetchVolFromSina(){
+  try{
+    const proxyBase='http://localhost:8899/?url=';
+    const target=encodeURIComponent('https://hq.sinajs.cn/list=sh000001,sz399001');
+    const r=await fetch(proxyBase+target,{cache:'no-cache'});
+    const t=await r.text();let tot=0;
+    for(const line of t.split('\n').filter(l=>l.includes('var hq_str'))){
+      const m=line.match(/"(.+)"/);if(!m)continue;
+      const v=parseFloat(m[1].split(',')[9]);if(v>0)tot+=v;
+    }
+    return tot>1e12?tot:null;
+  }catch(e){return null;}
+}
+
+/* Market-wide average turnover — push2 clist is blocked by Eastmoney
+   Estimate as volYuan / free-float cap instead (A-share free float ~90T yuan, 2026 baseline)
+   volYuan is passed in by the caller (already fetched in [1/6] ) */
+function estimateTurn(volYuan){
+  if(!volYuan||volYuan<1e11)return null;
+  const FLOAT_MV=9e13;  // A -share free float ~90T yuan
+  return +(volYuan/FLOAT_MV*100).toFixed(2);
+}
+async function fetchTurnFromClist(){
+  // push2 clist When blocked, this function skips the network and returns null
+  // Actual turnover is computed in compute() via estimateTurn(volYuan)
+  return{avgTurn:null};
+}
+
+/* SH/SZ daily trading data — Eastmoney macro data center
+   Used for: 7-day turnover series, 250-day average volume (turnover/ma250)
+   RPT_MUTUAL_MARKET_SH or RPT_MARKET_TURNOVER:
+   TRADE_DATE, MARKET_TURNOVER(turnover in 100M yuan), EXCHANGE_RATE(Turnover rate%) */
+/* Fetch SH + SZ historical candles, merge turnover → [{date,label,close,amtYuan,turn}, ...]
+   via proxy /index_kline (Sina source is stable; amt field is calibrated with an empirical factor) */
+async function fetchKline(secid, lmt){
+  try{
+    const [rSH,rSZ]=await Promise.all([
+      fetch(`http://localhost:8899/index_kline?code=sh000001&days=${lmt}`,{cache:'no-cache'}),
+      fetch(`http://localhost:8899/index_kline?code=sz399001&days=${lmt}`,{cache:'no-cache'}),
+    ]);
+    if(!rSH.ok||!rSZ.ok)return[];
+    const [kSH,kSZ]=await Promise.all([rSH.json(),rSZ.json()]);
+    const szMap={};
+    for(const k of kSZ)szMap[k.d]=k.amt||0;
+    return kSH.map(k=>{
+      const parts=k.d.split('-');
+      return{
+        date:k.d,
+        label:parseInt(parts[1])+'/'+parseInt(parts[2]),
+        close:k.close||0,
+        amtYuan:(k.amt||0)+(szMap[k.d]||0),
+        turn:0,  // Sina doesn’t provide turnover rate; fetch live via fetchTurnFromClist
+      };
+    }).filter(x=>x.amtYuan>1e11);
+  }catch(e){return[];}
+}
+/* 27 Shenwan L1 sectors + 60-day cumulative return (from daily closes)
+   Proxy /sectors endpoint fetches candles in parallel, computes returns, caches 30 min
+   Returns:[{code,name,today,ret60,date}, ...] already sorted by ret60 descending */
+async function fetchSectorLive(){
+  try{
+    const r=await fetch('http://localhost:8899/sectors',{cache:'no-cache'});
+    if(!r.ok)return[];
+    const arr=await r.json();
+    return Array.isArray(arr)?arr:[];
+  }catch(e){return[];}
+}
+
+/* Fetch 20-day turnover candles for a single Shenwan sector
+   secid Format: 90.BK0437 (Eastmoney sector board, market code 90)
+   Returns turnover array (yuan) for the last 20 trading days, or empty if insufficient */
+/* fetchSectorKline20 Disabled: push2his.eastmoney.com actively drops connections (TLS anti-scraping)
+   Volume deviation now uses f128 from fetchSectorLive (volume ratio = today’s avg / 5-day avg)
+   f128 > 1 means rising volume, < 1 falling; same direction as the 20-day deviation */
+async function fetchSectorKline20(bkCode){ return []; }
+
+/* ═══ REALTIME FETCH FUNCTIONS ═══ */
+
+/* Wind All-A (000985.CSI) PE/PB — Eastmoney index detail API
+   f9=PE TTM  f23=PB PB */
+/* PE/PB → /pe (leguLegu total-share-weighted TTM, most conservative) */
+async function fetchIndexValuation(){
+  try{
+    const r=await fetch('http://localhost:8899/pe',{cache:'no-cache'});
+    if(r.ok){const j=await r.json();return{peFullA:j.pe||null,pbFullA:j.pb||null};}
+  }catch(e){}
+  return{};
+}
+
+/* 10 Y treasury yield → /bond (AKShare ChinaBond, stable after close) */
+async function fetchBondYield(){
+  try{
+    const r=await fetch('http://localhost:8899/bond',{cache:'no-cache'});
+    if(r.ok){const j=await r.json();if(j.yield>0&&j.yield<20)return j.yield;}
+  }catch(e){}
+  return null;
+}
+
+/* 10Y Treasury historical candles (for the BOND_HIST trend chart)
+   Prefer AKShare /bond (official ChinaBond data), fallback datacenter-web */
+async function fetchBondKline(lmt){
+  // 1. AKShare /bond (stable, data available after close)
+  try{
+    const r=await fetch('http://localhost:8899/bond',{cache:'no-cache'});
+    if(r.ok){
+      const j=await r.json();
+      if(j.klines&&j.klines.length>=5)return j.klines.slice(-lmt);
+    }
+  }catch(e){}
+  // 2. datacenter-web fallback
+  try{
+    const r=await fetch(
+      'https://datacenter-web.eastmoney.com/api/data/v1/get'
+      +'?reportName=RPT_BOND_CBOND_YIELD'
+      +'&columns=TRADE_DATE,YIELD_10Y'
+      +'&sortColumns=TRADE_DATE&sortTypes=-1'
+      +'&pageSize='+lmt
+      +'&token=894050c76af8597a853f5b408b759f5d',
+      {cache:'no-cache'}
+    );
+    const j=await r.json();
+    const rows=(j?.result?.data||[]).reverse();
+    const kl=rows.map(row=>({date:(row.TRADE_DATE||'').slice(0,10),close:parseFloat(row.YIELD_10Y)}))
+                 .filter(x=>x.date&&x.close>0&&x.close<20);
+    if(kl.length>=5)return kl;
+  }catch(e){}
+  return[];
+}
+
+/* CSI 300 index price → /index_kline (latest close from Sina) */
+async function fetchMarketOverview(){
+  try{
+    const r=await fetch('http://localhost:8899/index_kline?code=sh000300&days=2',{cache:'no-cache'});
+    if(!r.ok)return{};
+    const arr=await r.json();
+    if(arr.length<2)return{};
+    const today=arr[arr.length-1],prev=arr[arr.length-2];
+    return{hs300:today.close,hs300_pct:+((today.close/prev.close-1)*100).toFixed(2)};
+  }catch(e){return{};}
+}
+
+/* Margin balance — AKShare /margin (SSE+SZSE total, 100M yuan) */
+let _marginDataP=null;
+function fetchMarginData(){
+  if(!_marginDataP)_marginDataP=_fetchMarginDataImpl();
+  return _marginDataP;
+}
+async function _fetchMarginDataImpl(){
+  // Main path is prebuilt.margin (see fetchAll and processData).
+  // This is only a fallback: if proxy /margin fails it falls back to a static 2023-09 array,
+  // whose balance still looks plausible, so the old logic treated three-year-old data as current. A freshness check now rejects stale data.
+  try{
+    const r=await fetch('http://localhost:8899/margin',{cache:'no-cache'});
+    const monthly=await r.json();
+    if(Array.isArray(monthly)&&monthly.length>=3){
+      const klines=monthly.map(x=>({date:'20'+x.m.slice(0,2)+'-'+x.m.slice(3,5),val:x.v}));
+      const bal=klines[klines.length-1].val;
+      // Gap between latest month and current month; >3 months is stale and rejected
+      const [ly,lm]=monthly[monthly.length-1].m.split('-');
+      const now=new Date();
+      const staleMonths=(now.getFullYear()*12+now.getMonth())-((2000+ +ly)*12+(+lm-1));
+      if(bal>1000&&bal<50000&&staleMonths<=3)return{bal,klines,src:'akshare'};
+      if(staleMonths>3)console.warn('[margin] /margin stale data ('+monthly[monthly.length-1].m+'), rejected');
+    }
+  }catch(e){console.warn('[margin] AKShare /margin failed:',e);}
+  return{bal:null,klines:[]};
+}
+
+/* backward-compatible with old callers */
+async function fetchMarginBalance(){
+  const d=await fetchMarginData();
+  return d.bal;
+}
+async function fetchMarginKline(){
+  const d=await fetchMarginData();
+  return d.klines;
+}
+
+/* ETF shares — Eastmoney ETF detail API
+   f39=shares outstanding (10k)  f2=price  f57=20-day share change */
+/* ETF flows by category — proxy /etf_categories (YoY, to check rotation) */
+async function fetchETFCategories(){
+  // Main path: proxy /etf_categories (if the proxy implements this live route)
+  try{
+    const r=await fetch('http://localhost:8899/etf_categories',{cache:'no-cache'});
+    if(r.ok){const d=await r.json();if(d&&d.categories&&d.categories.length)return d;}
+  }catch(e){}
+  // Fallback: daily arisk_data.json  etf_categories field (update_arisk_data.py generated daily)
+  try{
+    if(_prebuiltData&&_prebuiltData.etf_categories&&_prebuiltData.etf_categories.categories)
+      return _prebuiltData.etf_categories;
+    const pb=await loadPrebuiltJSON();
+    if(pb&&pb.etf_categories&&pb.etf_categories.categories)return pb.etf_categories;
+  }catch(e){}
+  return null;
+}
+
+/* PB Below-book ratio — approximated from Wind All-A PB
+   PB<1 ratio: historically when All-A PB < 1.4, below-book ratio exceeds about 10% */
+function estimatePbRatio(pbFullA){
+  if(!pbFullA||pbFullA<=0)return null;
+  // Linear approximation: PB=1.0 → below-book ratio≈18%, PB=1.5→8%, PB=2.0→4%
+  const ratio=Math.max(0,Math.min(30,+(24-10*pbFullA).toFixed(1)));
+  return ratio;
+}
+
+/* TSF stock YoY growth — Eastmoney macro data center
+   Returns array sorted by month [{m:'YY-MM', g:number}, ...], last 12 entries */
+async function fetchSFData(){
+  // Prefer AKShare proxy endpoint (M2 YoY growth)
+  try{
+    const r=await fetch('http://localhost:8899/sf',{cache:'no-cache'});
+    if(r.ok){const d=await r.json();if(Array.isArray(d)&&d.length>=4)return d;}
+  }catch(e){}
+  return null;
+}
+
+/* Monthly new equity fund issuance — Eastmoney fund issuance stats
+   Prefer equity-oriented (EQUITY_ISSUE_SHARE), fall back to all funds (TOTAL_ISSUE_SHARE) */
+async function fetchFundIssuance(){
+  // Prefer AKShare proxy endpoint
+  try{
+    const r=await fetch('http://localhost:8899/fund',{cache:'no-cache'});
+    if(r.ok){const d=await r.json();if(Array.isArray(d)&&d.length>=4)return d;}
+  }catch(e){}
+  return null;
+}
+
+/* CSI 300 option implied volatility — Eastmoney option vol index
+   Try multiple sources:
+   1. Eastmoney vol index secid=1.000188 (China VIX iVIX)
+   2. Sina ATM option approximation (backup)
+   returns {iv300: number, ivPct: number, src: string} */
+/* iVIX Option vol: push2 1.000188 blocked by Eastmoney
+   Live IV dropped; replaced by fetchHS300PriceKline → computeHV30 */
+async function fetchIV300(){ return null; }
+
+/* iVIX historical candles (to compute true 5-year percentile) */
+/* fetchIVKline: push2his unavailable, return empty array
+   Today’s IV still comes live from fetchIV300(); 5-year percentile falls back to a static estimate (65%) */
+async function fetchIVKline(){ return []; }
+
+/* HS300 historical closes — proxy /index_kline (Sina), for HV30 */
+async function fetchHS300PriceKline(days=40){
+  try{
+    const r=await fetch(`http://localhost:8899/index_kline?code=sh000300&days=${days}`,{cache:'no-cache'});
+    if(!r.ok)return null;
+    const arr=await r.json();
+    const closes=arr.map(k=>k.close).filter(v=>v>0);
+    return closes.length>=31?closes:null;
+  }catch(e){return null;}
+}
+
+/* 30-day annualized historical vol = std(ln(Pt/Pt-1), 30d) × √252 × 100 */
+function computeHV30(prices){
+  if(!prices||prices.length<31)return null;
+  const last31=prices.slice(-31);
+  const logRets=[];
+  for(let i=1;i<last31.length;i++)logRets.push(Math.log(last31[i]/last31[i-1]));
+  const mean=logRets.reduce((a,b)=>a+b,0)/logRets.length;
+  const variance=logRets.reduce((s,v)=>s+(v-mean)**2,0)/logRets.length;
+  return parseFloat((Math.sqrt(variance)*Math.sqrt(252)*100).toFixed(1));
+}
+
+/* Eastmoney Miaoxiang API (requires proxy.py running and MX_APIKEY env var set) */
+async function fetchMX(query){
+  try{
+    const r=await fetch('http://localhost:8899/mx',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({toolQuery:query}),cache:'no-cache',
+    });
+    if(!r.ok)return null;
+    return await r.json();
+  }catch(e){return null;}
+}
+
+/* Extract monthly time series from MX API results [{m:'YY-MM',g:number}] */
+function parseMXMonthly(result,scale=1){
+  try{
+    const dtoList=result?.data?.data?.searchDataResultDTO?.dataTableDTOList;
+    if(!dtoList||!dtoList.length)return null;
+    const dto=dtoList[0];const table=dto.table||{};
+    const headers=table.headName||[];if(!headers.length)return null;
+    const order=dto.indicatorOrder||[];
+    const firstKey=String(order.length?order[0]:Object.keys(table).find(k=>k!=='headName')||'');
+    if(!firstKey)return null;
+    const vals=table[firstKey]||[];
+    return headers.map((h,i)=>{
+      const raw=String(h).slice(0,10);
+      const dateStr=raw.length===7?raw+'-01':raw;  // YYYY-MM → YYYY-MM-01
+      const d=new Date(dateStr);
+      if(isNaN(d.getTime()))return null;
+      const v=parseFloat(vals[i]);if(isNaN(v))return null;
+      return{m:String(d.getFullYear()).slice(2)+'-'+String(d.getMonth()+1).padStart(2,'0'),g:scale===1?v:+(v/scale).toFixed(0)};
+    }).filter(Boolean);
+  }catch(e){return null;}
+}
+
+/* ═══ STATIC DATA ═══ */
+function getStatic(){
+  // Generate last 7 trading-day labels; initial turnover shows -- until live data arrives
+  const tradingDayLabels=genRecentTradingDays(7);
+  const recentVol=tradingDayLabels.map(d=>({d,v:0}));
+  const recentTurn=Array(7).fill(1.2); // A-share typical turnover baseline; overwritten by live/cached values at runtime
+  // marginSlopeZ computed from the slope series and written by renderMarginChart() window._D
+  return{
+    peFullA:16.87,bond10y:1.78,pbRatio:9.1,iv300:21.2,ivPct:65,
+    marginBal:15820,marginChg:0,marginSlopeZ:null,turnoverPct:50,
+    limitUp:0,limitDown:0,hs300:3800,
+    sfData:[],impulse:[],impLabels:[],
+    recentVol,recentTurn,
+    fundIssuance:[],fundLabels:[],sectors:[],
+  };
+}
+
+/* ═══ FETCH ALL ═══ */
+async function fetchAll(force){
+  const st=getStatic();
+  // Prebuilt data (from the Python script): refetched on force; otherwise loaded once per session,
+  // so after cron updated arisk_data.json , clicking"↻ Refresh"still showed old values (needed a full page reload)
+  if(force||!_prebuiltData){try{const pb=await loadPrebuiltJSON();if(pb)_prebuiltData=pb;}catch(e){}}
+  const prebuilt=_prebuiltData;
+  let volYuan=null,avgTurn=null,shKlines=[],sectorLive=[],volSource='loading';
+
+  setL('Get today’s turnover...','[1/6]');
+  try{const v=await Promise.race([fetchVolFromSina(),new Promise((_,rej)=>setTimeout(rej,4000))]);if(v&&v>5e12){volYuan=v;volSource='Sina live';}}catch(e){}
+
+  setL('Get valuation/treasury/CSI 300/ETF/social financing...','[2/6]');
+  const _bondKlineP=Promise.race([fetchBondKline(30),new Promise((_,rej)=>setTimeout(rej,10000))]).catch(()=>[]);
+
+  // Use Promise.allSettled so one failure doesn’t block the rest
+  let valuation={},bondYield=null,bondKlines=[],overview={},
+      marginBal=null,marginKlines=[],sfDataLive=null;
+  const _settled2=await Promise.allSettled([
+    fetchIndexValuation(),
+    fetchBondYield(),
+    fetchMarketOverview(),
+    fetchSFData(),
+  ]);
+  const _v=i=>_settled2[i].status==='fulfilled'?_settled2[i].value:null;
+  valuation=_v(0)||{};bondYield=_v(1);overview=_v(2)||{};sfDataLive=_v(3);
+  bondKlines=await _bondKlineP;
+
+  // Start margin fetch in background (doesn’t block [3/6], avoids a 25s stall)
+  const _marginP=!_prebuiltData?.margin
+    ?Promise.race([fetchMarginData(),new Promise((_,rej)=>setTimeout(rej,25000))]).catch(()=>({bal:null,klines:[]}))
+    :Promise.resolve({bal:null,klines:[]});
+
+  setL('Get sectors/HV30...','[3/6]');
+  let turnResult={avgTurn:null},ivResult=null,ivKlines=[],hs300Prices=null;
+  const _settled3=await Promise.allSettled([
+    fetchTurnFromClist(),     // push2 call deprecated, returns immediately null
+    fetchSectorLive(),         // /sectors AKShare Shenwan L1
+    fetchIV300(),              // deprecated, returns null
+    fetchIVKline(),            // hardcoded empty
+    fetchHS300PriceKline(40),  // /index_kline Sina CSI 300 closes
+  ]);
+  const _w=i=>_settled3[i].status==='fulfilled'?_settled3[i].value:null;
+  turnResult=_w(0)||{avgTurn:null};
+  sectorLive=_w(1)||[];ivResult=_w(2);ivKlines=_w(3)||[];hs300Prices=_w(4);
+  // Turnover priority: prebuilt JSON (real value, SH+SZ stock_sse_deal_daily) > live API > estimateTurn fallback
+  const prebuiltTurn=_prebuiltData?.turnover?.avg_pct;
+  avgTurn=prebuiltTurn||turnResult.avgTurn||estimateTurn(volYuan);
+
+  // ── MX API Second pass (when sfData / fundIssuance primary is empty) ──────────
+  if((!sfDataLive||sfDataLive.length<4)&&!_prebuiltData?.m2_monthly){
+    try{
+      const mxSF=await Promise.race([fetchMX('TSF stock YoY growth, last 12 months'),new Promise((_,rej)=>setTimeout(rej,8000))]);
+      if(mxSF){const parsed=parseMXMonthly(mxSF);if(parsed&&parsed.length>=4)sfDataLive=parsed;}
+    }catch(e){}
+  }
+  setL('Fetch historical candles (SSE)...','[4/6]');
+  try{shKlines=await Promise.race([fetchKline('1.000001',260),new Promise((_,rej)=>setTimeout(rej,5000))]);}catch(e){shKlines=[];}
+
+  // Collect margin results ([3/6]+[4/6] ~5-17s elapsed, margin is most likely ready)
+  if(!marginKlines||marginKlines.length<3){
+    try{const md=await _marginP;if(md?.klines?.length>=3){marginBal=md.bal;marginKlines=md.klines;}}catch(e){}
+  }
+
+  setL('Fetch sector 20-day candles (parallel)...','[5/6]');
+  setL('Process data...','[6/6]');
+
+  // ETF Fetch + render of category flows moved into apply(), covering both cached and live paths (see apply)
+
+  // ── 1. Treasury candle history → BOND_HIST ──────────────────────────────
+  // replace static with real candles BOND_HIST array; needs at least 5 bars to be meaningful
+  if(bondKlines&&bondKlines.length>=5){
+    const closes=bondKlines.map(k=>k.close).filter(v=>v>0&&v<20);
+    if(closes.length>=5){
+      // override global BOND_HIST (re-read at render time)
+      window._BOND_HIST_LIVE=closes;
+    }
+  }
+  // Today’s yield: prefer live API, then the last candle
+  let bondNow=bondYield
+    ||(bondKlines.length?bondKlines[bondKlines.length-1].close:null)
+    ||st.bond10y;
+
+  // ── 2. PE/PB ──────────────────────────────────────────────
+  // Fallback chain: live /pe → prebuilt pe_300 (fetch_pe_300 daily, same basis as /pe) → static fallback
+  const peNow  = valuation.peFullA  || (prebuilt&&prebuilt.pe_300) || st.peFullA;
+  const pbNow  = valuation.pbFullA  || null;
+  const pbRatioNow = pbNow ? estimatePbRatio(pbNow) : st.pbRatio;
+
+  // ── 3. Margin balance & slope series ────────────────────────────────
+  let marginBalNow = marginBal || st.marginBal;
+  // Build slope series from month-end values aggregated from daily data + real month labels
+  let marginChgNow = st.marginChg;
+  let marginSlopeSeries = null;
+  let marginSliceLabels = null;   // real month labels aligned with marginSlopeSeries
+  if(marginKlines&&marginKlines.length>=3){
+    const vals=marginKlines.map(k=>k.val);
+    // Convert 'YYYY-MM' to compact labels, e.g. '25-03' → '3 M'
+    const labelOf=ym=>{
+      const parts=ym.split('-');
+      return MON[parseInt(parts[1],10)-1];
+    };
+    const rawLabels=marginKlines.map(k=>labelOf(k.date));
+    const slopes=vals.map((v,i)=>i===0?null:parseFloat(((v-vals[i-1])/vals[i-1]*100).toFixed(2))).slice(1);
+    const slopeLabels=rawLabels.slice(1); // slope ratios have one extra; drop the first
+    if(slopes.length>=2){
+      marginChgNow=slopes[slopes.length-1];
+      marginSlopeSeries=slopes;
+      marginSliceLabels=slopeLabels;
+    }
+  }
+
+  // ── 4. HV30 (CSI 300 historical volatility)─────────────────────────────
+  let iv300Now=st.iv300,ivPctNow=st.ivPct,ivSrc='static';
+  const hv30=computeHV30(hs300Prices);
+  if(hv30){
+    iv300Now=hv30;
+    ivPctNow=Math.round(Math.min(99,Math.max(1,(hv30-11)/(40-11)*100)));
+    ivSrc='HV30 live';
+  }else if(ivResult&&ivResult.iv300){
+    iv300Now=ivResult.iv300;
+    if(ivKlines.length>=60){
+      const sorted=[...ivKlines].sort((a,b)=>a-b);
+      const rank=sorted.findIndex(v=>v>=iv300Now);
+      ivPctNow=Math.round((rank<0?sorted.length:rank)/sorted.length*100);
+    }else{
+      ivPctNow=ivResult.ivPct;
+    }
+    ivSrc=ivResult.src||'iVIX live';
+  }
+
+  // ── 5. CSI 300 ────────────────────────────────────────────
+  const hs300Now = overview.hs300 || st.hs300;
+
+  // ── 6. ETF shares ────────────────────────────────────────────
+
+  // ── 7. Turnover + turnover rate 7-day series (candles first, then prebuilt, then static)──
+  // Prebuilt data (Python MX API after close) as a more accurate baseline than static
+  let recentVol=prebuilt?.vol_7d&&prebuilt.vol_7d.length>=3
+    ?[...prebuilt.vol_7d]:[...st.recentVol];
+  let recentTurn=[...st.recentTurn];
+  // Turnover series priority: prebuilt real series (exchange basis) > localStorage cache > candle estimate > static
+  const pbTurnSeries=prebuilt?.turnover?.series;
+  let turnFromPrebuilt=false;
+  if(Array.isArray(pbTurnSeries)&&pbTurnSeries.length>=3){
+    recentTurn=pbTurnSeries.map(x=>x.pct);
+    // Align turnover labels with turnover-rate series so both lines share dates
+    if(!(prebuilt?.vol_7d&&prebuilt.vol_7d.length>=3)){
+      recentVol=pbTurnSeries.map(x=>({d:x.label,v:x.amount_yi}));
+    }
+    turnFromPrebuilt=true;
+    volSource=(volSource==='static'||volSource==='loading')?'exchange turnover':volSource+'+exchange turnover';
+  }else{
+    // Non-trading day / first load: fill all 7 slots from localStorage cache (closer to reality than static baseline)
+    try{
+      const cached=JSON.parse(localStorage.getItem('_arisk_turn')||'null');
+      if(cached&&cached.v>0){const cv=Math.round(cached.v*10)/10;recentTurn=Array(7).fill(cv);}
+    }catch(e){}
+  }
+  if(!turnFromPrebuilt&&shKlines&&shKlines.length>=7){
+    const last7=shKlines.slice(-7);
+    const lastDate=last7[last7.length-1].date;
+    const daysDiff=(Date.now()-new Date(lastDate).getTime())/(864e5);
+    if(daysDiff<=7){
+      recentVol=last7.map(k=>({d:k.label,v:Math.round(k.amtYuan/1e8)}));
+      // Turnover history: estimate as daily amtYuan / free-float cap (A-shares ~90T)
+      // Sina candles lack turnover rate, so compute it to get a real series (not a flat line)
+      const FLOAT_MV=9e13;
+      const kTurns=last7.map(k=>+(k.amtYuan/FLOAT_MV*100).toFixed(2));
+      if(kTurns.some(t=>t>0.3)){recentTurn=kTurns;}
+      volSource=(volSource==='static'?'K-line':'('+volSource+')+K-line');
+    }
+  }
+  const now2=new Date(),todayLabel=(now2.getMonth()+1)+'/'+(now2.getDate());
+  const lastLabel=recentVol[recentVol.length-1].d;
+  const needsLabelUpdate=(lastLabel!==todayLabel);
+  if(volYuan){recentVol[recentVol.length-1]={d:needsLabelUpdate?todayLabel:lastLabel,v:Math.round(volYuan/1e8)};}
+  else if(needsLabelUpdate){recentVol[recentVol.length-1]={...recentVol[recentVol.length-1],d:todayLabel};}
+  // Turnover: when valid, write to last slot and cache in localStorage; restore from cache outside trading hours
+  // When from the prebuilt series, the last slot is already the exchange value; don’t overwrite with avgTurn (avoids 3.045→3.0 precision loss)
+  if(turnFromPrebuilt){
+    try{localStorage.setItem('_arisk_turn',JSON.stringify({v:avgTurn,d:todayLabel}));}catch(e){}
+  }else if(avgTurn&&avgTurn>0){
+    recentTurn[recentTurn.length-1]=Math.round(avgTurn*10)/10;
+    try{localStorage.setItem('_arisk_turn',JSON.stringify({v:avgTurn,d:todayLabel}));}catch(e){}
+  }else{
+    try{
+      const cached=JSON.parse(localStorage.getItem('_arisk_turn')||'null');
+      if(cached&&cached.v>0){avgTurn=cached.v;recentTurn[recentTurn.length-1]=Math.round(cached.v*10)/10;}
+    }catch(e){}
+  }
+
+  // ── 8. 250-day avg volume (for volRatio)────────────────────────────
+  const amts=(shKlines||[]).map(k=>k.amtYuan).filter(v=>v>1e11);
+  const ma250yi=amts.length?amts.reduce((a,b)=>a+b,0)/amts.length/1e8:9800;
+
+  // ── 9. Sectors (27 Shenwan L1 + 60-day cumulative return, from closes)──────────────
+  // sectorLive From /sectors endpoint:[{code,name,today,ret60,date}, ...] sorted by ret60 descending
+  if((sectorLive||[]).length>=8){
+    st.sectors=sectorLive.map(s=>({
+      n:s.name||s.n,                // /sectors returns "n"; keep "name" for older payloads
+      bkCode:s.code,
+      excess:Number(s.today!==undefined?s.today:s.excess)||0,    // today’s change (latest close)
+      ret60:Number(s.ret60)||0,     // 60-day cumulative return
+      date:s.date,
+    }));
+  }
+
+  // ── 10. TSF & Credit impulse ─────────────────────────────────────
+  // Signal: 1st derivative of TSF stock YoY Δ(TSF YoY) = g[t] − g[t-1]
+  // Backtest (2016-present, 119 months): 6m IC=+0.270 / 12m IC=+0.277, hit rate ~60%
+  // Data priority: prebuilt JSON (TSF stock YoY, IC=0.27) > live /sf (M2 YoY, IC≈0)
+  //           Even if sfDataLive got M2, let prebuilt TSF data override it
+  let sfDataFinal=st.sfData,impulseFinal=st.impulse,impLabelsFinal=st.impLabels;
+  const sfSrc=prebuilt&&prebuilt.m2_monthly&&prebuilt.m2_monthly.length>=3
+    ?prebuilt.m2_monthly
+    :(sfDataLive&&sfDataLive.length>=3?sfDataLive:null);
+  if(sfSrc){
+    sfDataFinal=sfSrc;
+    impulseFinal=[];impLabelsFinal=[];
+    for(let i=1;i<sfDataFinal.length;i++){
+      impulseFinal.push(+(sfDataFinal[i].g-sfDataFinal[i-1].g).toFixed(2));
+      impLabelsFinal.push(sfDataFinal[i].m);
+    }
+  }
+
+  // ── 12. final computation ──────────────────────────────────────────
+  const latestTurn=recentTurn[recentTurn.length-1];
+  const turnoverPct=Math.min(99,Math.round((avgTurn||latestTurn||2.88)/3.5*100));
+  const pe=_aiOverrides.peFullA||peNow,bd=_aiOverrides.bond10y||bondNow;
+  const erp=+((1/pe-bd/100)*100).toFixed(2);
+  const erpPct=Math.round(Math.min(100,Math.max(0,(erp-2.0)/(7.0-2.0)*100)));
+  const totalVolYi=volYuan?volYuan/1e8:recentVol[recentVol.length-1].v;
+  const totalVolWanYi=+(totalVolYi/10000).toFixed(2);
+  const volRatio=ma250yi?+(totalVolYi/ma250yi).toFixed(2):null;
+
+  // ── 13. Override with prebuilt data (Python after-close script, no proxy needed)─────────────────────
+  if(prebuilt){
+    // Turnover series: use prebuilt when candles unavailable (reliable MX API data)
+    if(prebuilt.vol_7d&&prebuilt.vol_7d.length>=3&&!(shKlines&&shKlines.length>=7)){
+      recentVol=[...prebuilt.vol_7d];
+      if(volSource==='static')volSource='prebuilt';
+    }
+    // Sector flows: use prebuilt when proxy unavailable (Python fetches directly, no CORS)
+    if(prebuilt.sector_live&&prebuilt.sector_live.length>=5&&sectorLive.length<15){
+      st.sectors=prebuilt.sector_live;
+      volSource+=(volSource.endsWith('live')||volSource==='prebuilt'?'':'+')+'sector prebuilt';
+    }
+    // Margin balance & Monthly slope series: Eastmoney DC API is broken, use AKShare prebuilt
+    if(prebuilt.margin&&prebuilt.margin.monthly&&prebuilt.margin.monthly.length>=3
+       &&(!marginKlines||marginKlines.length<3)){
+      // convert {m:'25-06', v:27000} → {date:'2025-06', val:27000}
+      const pbKlines=prebuilt.margin.monthly.map(x=>{
+        const [yy,mm]=x.m.split('-');
+        return{date:`20${yy}-${mm}`,val:x.v};
+      });
+      const vals=pbKlines.map(k=>k.val);
+      const labelOf=ym=>{const p=ym.split('-');return MON[parseInt(p[1],10)-1];};
+      const rawLabels=pbKlines.map(k=>labelOf(k.date));
+      const slopes=vals.map((v,i)=>i===0?null:parseFloat(((v-vals[i-1])/vals[i-1]*100).toFixed(2))).slice(1);
+      const slopeLabels=rawLabels.slice(1);
+      if(slopes.length>=2){
+        marginChgNow=slopes[slopes.length-1];
+        marginSlopeSeries=slopes;
+        marginSliceLabels=slopeLabels;
+      }
+      const lastItem=prebuilt.margin.daily&&prebuilt.margin.daily.length?
+        prebuilt.margin.daily[prebuilt.margin.daily.length-1]:null;
+      if(lastItem)marginBalNow=lastItem.v;
+    }
+    // 10Y Treasury yield: use AKShare prebuilt when Eastmoney bond API unavailable
+    if(prebuilt.bond10y){
+      if(!bondYield&&!bondKlines.length){
+        bondNow=prebuilt.bond10y.latest||bondNow;
+      }
+      if(prebuilt.bond10y.hist&&prebuilt.bond10y.hist.length>=5&&!window._BOND_HIST_LIVE){
+        window._BOND_HIST_LIVE=prebuilt.bond10y.hist.map(x=>x.v);
+      }
+    }
+    // TSF stock YoY → 1st-derivative signal (M2 as an approximate fallback; AKShare differs from PBoC by ~1pp,
+    // but the derivative is relative so direction is unaffected)
+    if(prebuilt.m2_monthly&&prebuilt.m2_monthly.length>=3
+       &&(!sfDataLive||sfDataLive.length<3)){
+      sfDataFinal=prebuilt.m2_monthly;
+      impulseFinal=[];impLabelsFinal=[];
+      for(let i=1;i<sfDataFinal.length;i++){
+        impulseFinal.push(+(sfDataFinal[i].g-sfDataFinal[i-1].g).toFixed(2));
+        impLabelsFinal.push(sfDataFinal[i].m);
+      }
+    }
+    // CSI 300 HV30 (iVIX substitute): 30-day annualized historical vol computed via AKShare
+    if(prebuilt.hv30&&prebuilt.hv30.latest){
+      if(!ivResult||!ivResult.iv300){
+        iv300Now=prebuilt.hv30.latest;
+        ivPctNow=prebuilt.hv30.pct||ivPctNow;
+        ivSrc='HV30 prebuilt';
+      }
+    }
+  }
+
+  return{
+    ...st,
+    // override every field that can be live
+    peFullA:peNow, bond10y:bondNow,
+    pbRatio:pbRatioNow,
+    hs300:hs300Now,
+    marginBal:marginBalNow, marginChg:marginChgNow,
+    marginSlopeSeries, marginSliceLabels,
+    iv300:iv300Now, ivPct:ivPctNow, ivSrc,
+    sfData:sfDataFinal, sfDataIsLive:!!(sfDataLive&&sfDataLive.length>=3), impulse:impulseFinal, impLabels:impLabelsFinal,
+    recentVol,recentTurn,totalVolYi,totalVolWanYi,
+    avgTurn,ma250yi,volRatio,volSource,shKlines,
+    erp,erpPct,turnoverPct,
+  };
+}
+
+/* ═══ CHARTS ═══ */
+const CH={},G='rgba(0,0,0,.05)',T='#94a3b8';
+function mkChart(id,cfg){
+  const el=$(id);if(!el)return null;
+  if(CH[id]){try{CH[id].destroy();}catch(e){}CH[id]=null;}
+  try{CH[id]=new Chart(el,cfg);return CH[id];}catch(e){return null;}
+}
+
+function renderVolChart(d){
+  if(!d.recentVol||!d.recentTurn)return;
+  // skip render if all volumes are zero (initial static state)
+  if(d.recentVol.every(x=>!x.v))return;
+  const labels=d.recentVol.map(x=>x.d);
+  const vols=d.recentVol.map(x=>Math.round(x.v)/10000);
+  const turns=d.recentTurn.map(x=>Math.round(parseFloat(x)*10)/10);
+  const minT=Math.min(...turns),maxT=Math.max(...turns),padT=Math.max((maxT-minT)*0.3,0.2);
+  const el=$('c-vol');if(!el)return;
+  if(CH['c-vol']){try{CH['c-vol'].destroy();}catch(e){}CH['c-vol']=null;}
+  CH['c-vol']=new Chart(el,{
+    data:{labels,datasets:[
+      {type:'bar',label:'Turnover',data:vols,backgroundColor:vols.map(v=>v>=2?'rgba(185,28,28,.25)':'rgba(29,95,212,.2)'),borderColor:vols.map(v=>v>=2?'rgba(185,28,28,.6)':'rgba(29,95,212,.5)'),borderWidth:1,yAxisID:'y1'},
+      {type:'line',label:'Turnover rate',data:turns,borderColor:'#f97316',borderWidth:2,pointRadius:3,fill:false,tension:.3,yAxisID:'y2'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===0?ctx.parsed.y.toFixed(2)+'T'+(ctx.parsed.y>=2?' ⚠record volume':''):parseFloat(ctx.parsed.y.toFixed(1))+'%'}}},
+      scales:{
+        x:{ticks:{font:{size:9},color:T},grid:{color:G}},
+        y1:{ticks:{font:{size:9},color:T,callback:v=>v+'T'},grid:{color:G},min:0,suggestedMax:Math.max(...vols)*1.15},
+        y2:{position:'right',beginAtZero:false,min:Math.round((minT-padT)*10)/10,max:Math.round((maxT+padT)*10)/10,
+          ticks:{font:{size:9},color:'#f97316',precision:1,stepSize:0.1,callback:v=>parseFloat(v.toFixed(1))+'%'},grid:{display:false}},
+      }}
+  });
+  // vol-verify Caption row: shows the latest few days dynamically
+  const vv=$('vol-verify');
+  if(vv){
+    const recent=d.recentVol.slice(-4).reverse();
+    const parts=recent.map(x=>`${x.d}≈${(x.v/10000).toFixed(2)}T`);
+    const lastV=vols[vols.length-1];
+    const streak=vols.filter(v=>v>=2).length;
+    vv.textContent=parts.join(' | ')+(streak>=3?` | ${streak}days in a row >2T ⚠top-signal zone`:'');
+    vv.title='Source:'+d.volSource; if(d.volSource&&d.volSource.includes('60 D'))vv.textContent+=(' | sector deviation = 60-day baseline');
+  }
+}
+
+const BOND_HIST_FALLBACK=[2.10,2.05,2.00,1.98,1.95,1.92,1.88,1.85,1.83,1.81,1.79,1.78];
+let _bondChart=null;
+function renderBondTrendChart(cur){
+  if(typeof cur!=='number'||isNaN(cur))return;
+  // Prefer live candle data, fall back to static array
+  const hist=window._BOND_HIST_LIVE||BOND_HIST_FALLBACK;
+  const data=[...hist.slice(-19),cur];
+  const labels=data.map((_,i)=>i===data.length-1?'now':-(data.length-1-i)+'d');
+  const ma5=data.slice(-5).reduce((a,b)=>a+b,0)/5;
+  const slope=+(cur-ma5).toFixed(3),d1=+(cur-data[data.length-2]).toFixed(3),w1=+(cur-data[Math.max(0,data.length-6)]).toFixed(3);
+  const set=(id,txt,color)=>{const e=$(id);if(e){e.textContent=txt;if(color)e.style.color=color;}};
+  set('bond-big',cur.toFixed(2)+'%');
+  set('bond-delta-badge',(d1>=0?'Δ+':'Δ')+d1+'%',d1>=0?'var(--danger)':'var(--ok)');
+  set('bond-slope-lbl','MA5 Slope '+(slope>=0?'+':'')+slope+'%  '+(slope>0?'↑Rising rates weigh on ERP':'↓Falling rates support ERP'));
+  set('bond-d1',(d1>=0?'+':'')+d1+'%',d1>=0?'var(--danger)':'var(--ok)');
+  set('bond-w1',(w1>=0?'+':'')+w1+'%',w1>=0?'var(--danger)':'var(--ok)');
+  set('bond-ma5',ma5.toFixed(3)+'%');
+  const ctx=$('c-bond-trend');if(!ctx)return;
+  if(_bondChart){try{_bondChart.destroy();}catch(e){}_bondChart=null;}
+  const minV=Math.min(...data)-.05,maxV=Math.max(...data)+.05;
+  _bondChart=new Chart(ctx,{type:'line',data:{labels,datasets:[
+    {label:'10Y',data,borderColor:slope>0?'#dc2626':'#16a34a',borderWidth:2,pointRadius:data.map((_,i)=>i===data.length-1?5:0),pointBackgroundColor:'#1a202c',fill:false,tension:.35},
+    {label:'MA5',data:data.map((_,i)=>i>=4?+(data.slice(i-4,i+1).reduce((a,b)=>a+b,0)/5).toFixed(3):null),borderColor:'rgba(99,102,241,.5)',borderWidth:1.5,borderDash:[4,3],pointRadius:0,fill:false,tension:.3},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{ticks:{font:{size:9},color:'#94a3b8',maxTicksLimit:8},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{font:{size:9},color:'#94a3b8',callback:v=>v.toFixed(2)+'%'},grid:{color:'rgba(0,0,0,.04)'},min:minV,max:maxV}}}});
+}
+
+function renderIV(iv,ivPct,ivSrc){
+  const set=(id,txt,color)=>{const e=$(id);if(e){e.textContent=txt;if(color)e.style.color=color;}};
+  set('iv-val-big',iv.toFixed(1)+'%');set('iv-pct',String(ivPct));
+  const needle=$('iv-needle');if(needle)needle.style.left=clamp((iv-10)/30*100,0,100)+'%';
+  const srcBadge=$('iv-src-badge');
+  if(srcBadge){
+    const isPrebuilt=ivSrc&&ivSrc.includes('prebuilt');
+    const isLive=ivSrc&&ivSrc!=='static';
+    srcBadge.textContent=isPrebuilt?'AKShare prebuilt':ivSrc||'static';
+    srcBadge.style.background=isLive?'#dcfce7':'#fef3c7';
+    srcBadge.style.color=isLive?'#166534':'#92400e';
+  }
+  // HV30 How to read: CSI 300 historical vol, same thresholds (HV usually runs a few points below IV)
+  const regime=iv<12?'Very low vol':iv<20?'Normal range':iv<30?'Elevated':'High vol';
+  set('iv-regime',regime,iv>=30?'var(--danger)':iv>=20?'var(--warn)':'var(--ok)');
+
+  // ── Daily conversion (execution reference)─────────────────────────────────
+  // Volatility scales with the square root of time: dailyσ = annualizedσ / √252
+  const dailySigma=iv/Math.sqrt(252);
+  const sigColor=iv>=30?'var(--danger)':iv>=20?'var(--warn)':'var(--ok)';
+  set('iv-daily','±'+dailySigma.toFixed(2)+'%',sigColor);
+
+  // 1σ/2σ/3σ range: probability a single-day move falls in each band (normal approx.)
+  const grid=$('iv-sigma-grid');
+  if(grid){
+    const bands=[[1,'68%','about 2 in every 3 days'],[2,'95%','exceeded about 1 day a month'],[3,'99.7%','exceeded about 1 day a year']];
+    grid.innerHTML=bands.map(([k,prob,freq])=>
+      '<div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:5px 6px;text-align:center">'
+      +'<div style="font-size:9px;color:var(--muted);font-family:var(--mono)">'+k+'σ · '+prob+'</div>'
+      +'<div style="font-family:var(--mono);font-size:13px;font-weight:700;margin:1px 0">±'+(dailySigma*k).toFixed(2)+'%</div>'
+      +'<div style="font-size:8.5px;color:#94a3b8">'+freq+'</div></div>').join('');
+  }
+
+  // Stop-loss width reference: using 2σ as the floor so daily noise doesn’t trigger it
+  const stop2=dailySigma*2, stop3=dailySigma*3;
+  const note=$('iv-stop-note');
+  if(note){
+    const tight=stop2>3;   // whether a typical -3% stop is already narrower than 2σ
+    note.innerHTML='<strong>Stop-loss reference:</strong> wider than <strong style="color:'+sigColor+'">'+stop2.toFixed(1)+'%</strong> (2σ) avoids getting shaken out by normal swings;'
+      +'conservative: '+stop3.toFixed(1)+'% (3σ). '
+      +(tight?'<br><span style="color:#b45309">⚠ At current volatility, a typical −3% stop is only '+(3/dailySigma).toFixed(1)+'σ, '
+        +'and an ordinary choppy day can hit it → widen the stop and size down rather than tough it out.</span>'
+        :'<br><span style="color:#0a7c52">✓ Volatility is mild;−3% stop equals '+(3/dailySigma).toFixed(1)+'σ, plenty of room for noise.</span>');
+  }
+
+  const isHV=ivSrc&&ivSrc.includes('HV30');
+  set('iv-interp',iv>=30?(isHV?'HV30 very high: entry timing is largely random; build positions in 3–5 tranches, no more than 1/3 of the planned size per day.':'Market is very volatile; watch position size.')
+    :iv>=20?'HV30 elevated: build in tranches and widen stops accordingly.'
+    :iv<12?'Volatility is unusually low; watch for a shock breaking the calm.'
+    :(isHV?'30 -day historical vol is normal; business as usual.':'volatility normal.'));
+}
+
+function renderCreditChart(d){
+  if(!d.impulse||!d.impLabels)return;
+  // 1st-derivative colors: >+0.05pp green, -0.05~+0.05 gray, <-0.05pp red
+  mkChart('c-credit',{type:'bar',data:{labels:d.impLabels,datasets:[{label:'Δ(TSF YoY)',data:d.impulse,backgroundColor:d.impulse.map(v=>v>0.05?'rgba(10,124,82,.7)':v>-0.05?'rgba(100,116,139,.4)':'rgba(185,28,28,.65)'),borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:T},grid:{display:false}},y:{ticks:{font:{size:9},color:T,callback:v=>(v>=0?'+':'')+v.toFixed(2)},grid:{color:G}}}}});
+}
+
+/* ── Compute Z-score dynamically from the slope series ──────────────────────────────────
+   Z = (latestSlope - mean(slopes)) / std(slopes)
+   Uses all 8 slope periods (incl. current) to place the current slope within its own history.
+   Positive = high (leveraging unusually fast); negative = low (deleveraging or shrinking).
+   trigger threshold ≥ +2.0σ counts as overheating; during deleveraging Z is negative and shouldn’t trigger.
+─────────────────────────────────────────────────────────────── */
+function calcSlopeZ(slopes){
+  const n=slopes.length;
+  if(n<2)return 0;
+  const mean=slopes.reduce((a,b)=>a+b,0)/n;
+  const std=Math.sqrt(slopes.reduce((s,v)=>s+(v-mean)**2,0)/n);
+  if(std<1e-6)return 0;
+  return parseFloat(((slopes[n-1]-mean)/std).toFixed(2));
+}
+
+let _rocChart=null;
+function renderMarginROC(slopeData){
+  const ctx=$('c-margin-roc');if(!ctx)return null;
+  if(_rocChart){try{_rocChart.destroy();}catch(e){}_rocChart=null;}
+  const roc=slopeData.map((v,i)=>i===0?0:parseFloat((v-slopeData[i-1]).toFixed(3)));
+  const labels=slopeData.map((_,i)=>i===slopeData.length-1?'now':-(slopeData.length-1-i)+'m');
+  const latestSlope=slopeData[slopeData.length-1];
+  const latestROC=roc[roc.length-1];
+  // Exit signal: slope positive (leveraging) and ROC turning down
+  const isKeySignal=latestSlope>0&&latestROC<0;
+  // Bottom signal: slope negative (deleveraging) and ROC turning positive (deleveraging slowing)
+  const isBottomSignal=latestSlope<0&&latestROC>0;
+
+  /* ROC Bar color logic (four states):
+     red    = slope + / ROC - → leverage peaking, exit signal
+     orange = slope + / ROC + → leverage accelerating, euphoria continues
+     green  = slope - / ROC + → deleveraging slowing, selling pressure easing (bottom signal)
+     gray   = slope - / ROC - → deleveraging accelerating, panic spreading
+  */
+  _rocChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'ROC',data:roc,
+    backgroundColor:roc.map((v,i)=>{
+      const s=slopeData[i];
+      if(s>0&&v<0)return'rgba(220,38,38,.85)';   // Exit signal
+      if(s>0&&v>0)return'rgba(249,115,22,.70)';   // Accelerating euphoria
+      if(s<0&&v>0)return'rgba(10,124,82,.75)';    // Bottom signal
+      return'rgba(113,128,150,.40)';              // Deleveraging accelerating
+    }),borderRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const s=slopeData[ctx.dataIndex];const v=ctx.parsed.y;
+        const tag=s>0&&v<0?' ⚡Exit':s<0&&v>0?' 🟢Deleveraging slowing':s>0&&v>0?' 🔶Euphoria accelerating':' Deleveraging accelerating';
+        return(v>=0?'+':'')+v.toFixed(3)+tag;
+      }}}},
+      scales:{x:{ticks:{font:{size:8},color:T},grid:{display:false}},
+              y:{ticks:{font:{size:8},color:T,callback:v=>(v>=0?'+':'')+v.toFixed(2)},grid:{color:G}}}}});
+  return{roc,latestROC,isKeySignal,isBottomSignal};
+}
+
+function renderMarginChart(d){
+  // Prefer the real month-end slope series aggregated from daily data (with real month labels)
+  // d.marginSlopeSeries and d.marginSliceLabels are generated together by processData()
+  const STATIC_SLOPES=[2.1,1.8,.9,.3,-.2,-.5,-1.1];
+  let mD, mL;
+  if(d.marginSlopeSeries&&d.marginSlopeSeries.length>=2&&d.marginSliceLabels&&d.marginSliceLabels.length>=2){
+    // all from real API data, last 8 points
+    const n=Math.min(8,d.marginSlopeSeries.length);
+    mD=d.marginSlopeSeries.slice(-n);
+    mL=d.marginSliceLabels.slice(-n);
+  }else{
+    // Full static fallback (network error) — month labels anchored on"today"to avoid showing future months
+    const base=[...STATIC_SLOPES,typeof d.marginChg==='number'?d.marginChg:-.4];
+    mD=base.slice(-8);
+    mL=mLabels(8);   // last 8 months, ending this month
+  }
+
+  // update data source badge
+  const mgBadge=$('margin-src-badge');
+  if(mgBadge){
+    const isLive=!!(d.marginSlopeSeries&&d.marginSlopeSeries.length>=2&&d.marginSliceLabels);
+    const isPrebuilt=isLive&&!!(_prebuiltData?.margin);
+    mgBadge.textContent=isPrebuilt?'AKShare prebuilt':isLive?'AKShare live':'static fallback';
+    mgBadge.style.cssText=isPrebuilt
+      ?'background:#dcfce7;color:#166534;border:1px solid #9ee6c8'
+      :isLive?'background:#dbeafe;color:#1e40af;border:1px solid #93c5fd'
+      :'background:#fef3c7;color:#92400e;border:1px solid #f5cc6a';
+  }
+
+  // compute Z-score and write back to window._D for renderDecisionModel
+  const dynamicZ=calcSlopeZ(mD);
+  if(window._D)window._D.marginSlopeZ=dynamicZ;
+
+  mkChart('c-margin',{type:'line',data:{labels:mL,datasets:[{label:'Margin monthly growth%',data:mD,borderColor:'#1d5fd4',borderWidth:2,pointRadius:3,fill:false,tension:.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},color:T},grid:{color:G}},y:{ticks:{font:{size:9},color:T,callback:v=>(v>=0?'+':'')+v+'%'},grid:{color:G}}}}});
+
+  const rocR=renderMarginROC(mD);
+  const latestROC=rocR?rocR.latestROC:0;
+  const isKey=rocR?rocR.isKeySignal:false;
+  const isBottom=rocR?rocR.isBottomSignal:false;
+  const latestSlope=mD[mD.length-1];
+
+  const set=(id,txt,color)=>{const e=$(id);if(e){e.textContent=txt;if(color)e.style.color=color;}};
+
+  // Z score color: high positive = overheating red, negative = deleveraging green (no risk)
+  const zColor=dynamicZ>=2?'#dc2626':dynamicZ>=1?'#d97706':dynamicZ<=0?'#0a7c52':'var(--text)';
+  set('mg-roc',(latestROC>=0?'+':'')+latestROC.toFixed(3),
+    isKey?'#dc2626':isBottom?'#0a7c52':latestROC<0?'#d97706':'var(--text)');
+  set('mg-bal',(d.marginBal/10000).toFixed(2)+'T');
+  set('mg-slope',(latestSlope>=0?'+':'')+latestSlope.toFixed(2)+'%',latestSlope>=0?'var(--ok)':'var(--danger)');
+
+  // append Z-score next to slope
+  const mgSlopeEl=$('mg-slope');
+  if(mgSlopeEl)mgSlopeEl.title='Z score='+dynamicZ+'σ(series mean:'+( mD.reduce((a,b)=>a+b,0)/mD.length).toFixed(2)+'%)';
+
+  const l3rv=$('l3-roc-val');
+  if(l3rv){l3rv.textContent=(latestROC>=0?'+':'')+latestROC.toFixed(3);
+    l3rv.style.color=isKey?'#dc2626':isBottom?'#0a7c52':latestROC<0?'#d97706':'var(--text)';}
+
+  const l3rn=$('l3-roc-note');
+  if(l3rn){
+    if(isKey)l3rn.innerHTML='<span style="color:#dc2626;font-weight:600">⚡ Slope still positive but momentum turning = cleanest exit signal</span>';
+    else if(isBottom)l3rn.innerHTML='<span style="color:#0a7c52;font-weight:600">🟢 Deleveraging slowing, selling pressure easing, potential bottom</span>';
+    else if(latestROC<0&&latestSlope<0)l3rn.textContent='Deleveraging accelerating, panic spreading';
+    else if(latestROC>0&&latestSlope>0)l3rn.textContent='Leverage accelerating, market euphoric';
+    else l3rn.textContent='';
+  }
+
+  // Update decision model too (Z-score written to window._D)
+  if(window._D)renderDecisionModel(window._D);
+}
+
+/* ═══ SECTOR ═══ */
+/* Sector heatmap: colored by 60-day return (hot/cold structure) + today’s change in small text
+   Thresholds from A-share history: 60-day >25% overstretched, <-15% potential launch candidate */
+/* ETF Category flow cards: YoY, testing the broad-based → sector/cross-border rotation thesis */
+function renderETFCategories(data){
+  if(!data||!data.categories)return;
+  const dEl=$('etf-cat-dates');
+  if(dEl)dEl.textContent=data.latest_date+'  vs  '+data.prev_date+' (~60 trading days ago)';
+  const grid=$('etf-cat-grid');if(!grid)return;
+  // Sort by net change descending: largest inflow first, largest outflow last
+  const sorted=[...data.categories].sort((a,b)=>(b.change_yi||0)-(a.change_yi||0));
+  const maxAbs=Math.max(...sorted.map(c=>Math.abs(c.change_yi||0)),1);
+  grid.innerHTML=sorted.map(c=>{
+    const pct=c.change_pct, chg=c.change_yi||0;
+    // Color by relative size of net change (not %), so small categories don’t stand out on high percentages
+    const inten=Math.abs(chg)/maxAbs;
+    let bg,tc,tag;
+    if(chg>0){
+      if(inten>=0.5){bg='#16a34a';tc='#fff';tag='⭐ Heavy inflow';}
+      else if(inten>=0.15){bg='#86efac';tc='#14532d';tag='Inflow';}
+      else if(inten>=0.03){bg='#dcfce7';tc='#166534';tag='Slight inflow';}
+      else{bg='#f3f4f6';tc='#6b7280';tag='Flat';}
+    }else{
+      if(inten>=0.5){bg='#dc2626';tc='#fff';tag='⚠ Heavy outflow';}
+      else if(inten>=0.15){bg='#fca5a5';tc='#7f1d1d';tag='Outflow';}
+      else if(inten>=0.03){bg='#fee2e2';tc='#991b1b';tag='Slight outflow';}
+      else{bg='#f3f4f6';tc='#6b7280';tag='Flat';}
+    }
+    const chgTxt=(chg>=0?'+':'')+(Math.abs(chg)>=1000?(chg/10).toFixed(0)+'B':(chg/10).toFixed(1)+'B');
+    return '<div style="background:'+bg+';color:'+tc+';border-radius:6px;padding:8px 6px;text-align:center;line-height:1.3">'
+      +'<div style="font-size:10.5px;font-weight:700;margin-bottom:3px">'+enName(c.category)+' <span style="opacity:.7;font-weight:400">('+c.count_now+')</span></div>'
+      +'<div style="font-size:13px;font-weight:700;font-family:var(--mono);margin-bottom:1px">'+chgTxt+'</div>'
+      +'<div style="font-size:10px;font-weight:600;font-family:var(--mono);margin-bottom:2px;opacity:.9">'+(pct>=0?'+':'')+pct.toFixed(1)+'%</div>'
+      +'<div style="font-size:8.5px;opacity:.8">AUM '+(c.scale_yi/10).toFixed(0)+'B</div>'
+      +'<div style="font-size:8.5px;opacity:.85;margin-top:1px">'+tag+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function renderHeatmap(sectors){
+  const hm=$('hm');if(!hm)return;
+  if(!sectors||!sectors.length){
+    hm.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:20px;font-size:11px">No sector data yet</div>';
+    return;
+  }
+  hm.innerHTML=[...sectors].sort((a,b)=>(b.ret60||0)-(a.ret60||0)).map(s=>{
+    const r60=s.ret60||0,today=s.excess||0;
+    let bg,tc,tag='';
+    if(r60>=25){bg='#dc2626';tc='#fff';tag='Overvalued⚠';}            // Very hot → caution
+    else if(r60>=15){bg='#fca5a5';tc='#7f1d1d';}               // Strong
+    else if(r60>=5){bg='#fed7aa';tc='#9a3412';}                // Warm
+    else if(r60>=-5){bg='#f3f4f6';tc='#6b7280';}               // Neutral
+    else if(r60>=-15){bg='#bbf7d0';tc='#14532d';}              // Cool
+    else if(r60>=-25){bg='#86efac';tc='#166534';tag='Dormant';}    // Very cold
+    else{bg='#16a34a';tc='#fff';tag='Dormant◎';}                   // Very cold → launch candidate
+    const todayColor=today>=1?'#dc2626':today<=-1?'#0a7c52':tc;
+    return '<div style="background:'+bg+';color:'+tc+';border-radius:5px;padding:6px 4px;text-align:center;line-height:1.3">'
+      +'<div style="font-size:10px;font-weight:600;margin-bottom:2px">'+enName(s.n)+(tag?' '+tag:'')+'</div>'
+      +'<div style="font-size:13px;font-weight:700;font-family:var(--mono)">'+(r60>=0?'+':'')+r60.toFixed(1)+'%</div>'
+      +'<div style="font-size:9px;opacity:.85;margin-top:1px;color:'+todayColor+'">today '+(today>=0?'+':'')+today.toFixed(2)+'%</div>'
+      +'</div>';
+  }).join('');
+}
+
+/* ═══ DECISION MODEL ═══ */
+let _scatterChart=null,_signalChart=null;
+// Note: the old “60-day risk window” was removed with Layer 3 (it only served L3 trigger weighting)
+function renderScatter(erpPct,turnoverPct){
+  const ctx=$('c-scatter');if(!ctx)return;
+  if(_scatterChart){try{_scatterChart.destroy();}catch(e){}_scatterChart=null;}
+  const hist=[];for(let i=0;i<20;i++)hist.push({x:20+Math.random()*60,y:20+Math.random()*60});
+  const isRed=erpPct<35&&turnoverPct>65;
+  const ptColor=isRed?'#dc2626':turnoverPct>65&&erpPct<50?'#f97316':erpPct>65?'#16a34a':'#1d5fd4';
+  _scatterChart=new Chart(ctx,{type:'scatter',data:{datasets:[
+    {label:'history',data:hist,pointRadius:4,pointBackgroundColor:'rgba(113,128,150,.3)',pointBorderColor:'rgba(113,128,150,.4)',pointBorderWidth:1},
+    {label:'Current',data:[{x:erpPct,y:turnoverPct}],pointRadius:10,pointBackgroundColor:ptColor,pointBorderColor:'#fff',pointBorderWidth:2},
+  ]},
+  plugins:[{id:'q',beforeDraw(chart){
+    const{ctx:c,chartArea:{left,right,top,bottom,width,height}}=chart;
+    const mx=left+width/2,my=top+height/2;c.save();
+    // X axis = ERP percentile (left = low = expensive, right = high = cheap). Danger = expensive + high turnover = top-left; safe = cheap + low turnover = bottom-right.
+    c.fillStyle='rgba(220,38,38,.07)';c.fillRect(left,top,mx-left,my-top);   // Top-left: expensive + high turnover = danger
+    c.fillStyle='rgba(234,179,8,.05)';c.fillRect(mx,top,right-mx,my-top);    // Top-right: cheap + high turnover = warm
+    c.fillStyle='rgba(22,163,74,.05)';c.fillRect(mx,my,right-mx,bottom-my);  // Bottom-right: cheap + low turnover = safe
+    c.fillStyle='rgba(29,95,212,.04)';c.fillRect(left,my,mx-left,bottom-my); // Bottom-left: expensive + low turnover = wait
+    c.font='bold 10px monospace';c.textAlign='center';
+    c.fillStyle='rgba(220,38,38,.5)';c.fillText('⚠ Danger',left+(mx-left)/2,top+14);
+    c.fillStyle='rgba(22,163,74,.5)';c.fillText('✓ Safe',mx+(right-mx)/2,bottom-8);
+    c.restore();
+  }}],
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===1?'Current: ERP pct='+Math.round(ctx.parsed.x)+'%, turnover='+Math.round(ctx.parsed.y)+'%':'ERP='+Math.round(ctx.parsed.x)+'%, turnover='+Math.round(ctx.parsed.y)+'%'}}},
+    scales:{
+      x:{title:{display:true,text:'ERP percentile (← low = expensive = danger   high = cheap = safe →)',font:{size:10},color:'#718096'},min:0,max:100,ticks:{font:{size:9},color:'#94a3b8',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.04)'}},
+      y:{title:{display:true,text:'Turnover percentile (higher = more crowded →)',font:{size:10},color:'#718096'},min:0,max:100,ticks:{font:{size:9},color:'#94a3b8',callback:v=>v+'%'},grid:{color:'rgba(0,0,0,.04)'}},
+    }}});
+}
+function mkPb(scheme,pct,label,val){
+  const bg={ok:'#c0dd97',warn:'#fac775',danger:'#f7c1c1'}[scheme]||'#b5d4f4';
+  const fg={ok:'#3b6d11',warn:'#854f0b',danger:'#a32d2d'}[scheme]||'#185fa5';
+  const vc={ok:'#3b6d11',warn:'#854f0b',danger:'#a32d2d'}[scheme]||'var(--text)';
+  return '<div class="pbar-row"><div class="pbar-label-row"><span class="pbar-label">'+label+'</span><span class="pbar-val" style="color:'+vc+'">'+val+'</span></div><div class="pbar-track" style="background:'+bg+'"><div class="pbar-fill" style="background:'+fg+';width:'+clamp(pct,0,100)+'%"></div></div></div>';
+}
+function renderDecisionModel(d){
+  if(!d)return;
+  const pe=_aiOverrides.peFullA||d.peFullA,bd=_aiOverrides.bond10y||d.bond10y;
+  const erpPct=Math.round(Math.min(100,Math.max(0,((1/pe-bd/100)*100-2.0)/(7.0-2.0)*100)));
+  const latestTurn=Array.isArray(d.recentTurn)&&d.recentTurn.length?d.recentTurn[d.recentTurn.length-1]:0;
+  // Turnover fallback: use 1.5 when missing (maps to percentile ≈ 43, neutral) to avoid false triggers"Extremely crowded"signal
+  // The old 2.88 gave turnoverPct=82, crossing the 80 threshold → missing data showed as high risk, which is backwards
+  const turnRaw=d.avgTurn||latestTurn||null;
+  const turnoverPct=turnRaw!=null?Math.min(99,Math.round(turnRaw/3.5*100)):43;
+  const turnDataMissing=turnRaw==null;
+  // Signal: TSF stock YoY 1st derivative Δ. Three states:
+  //   Δ>0 for 2 months → bullish confirmed (expansion, green)
+  //   Δ<0 for 2 months → bearish confirmed (contraction, red = creditNeg)
+  //   otherwise   → not triggered (neutral, gray)
+  const imp=Array.isArray(d.impulse)?d.impulse:[];
+  const impN=imp.length?imp[imp.length-1]:0;
+  const impPrev=imp.length>=2?imp[imp.length-2]:0;
+  const impHist=imp.length>=10?imp.slice(-10):Array(10).fill(0);
+  const expansionConfirmed=impN>0&&impPrev>0;
+  const contractionConfirmed=impN<0&&impPrev<0;
+  const creditNeg=contractionConfirmed;     // only"2 months in a rowΔ<0"confirms contraction
+  const creditPos=expansionConfirmed;        // new: expansion confirmed
+  const creditState=expansionConfirmed?'expansion':contractionConfirmed?'contraction':'neutral';
+  // Crowding/danger score: expensive (=100-ERP pct) + high turnover. Higher ERP pct = cheaper = safer, so use its complement.
+  // Backtest: ERP absolute threshold 6M IC +0.315 / 12M +0.454, the strongest single factor in the model;
+  //       turnover alone has IC of only -0.071, but blending it at 45% gives the best combined result, so the recipe stays.
+  const pcaCrowding=Math.round((100-erpPct)*0.55+turnoverPct*0.45);
+  const crowdingScheme=pcaCrowding>=80?'danger':pcaCrowding>=60?'warn':'ok';
+  const crowdingLabel=pcaCrowding>=80?'Extremely crowded':pcaCrowding>=60?'rich':'Fair';
+
+  // ── Reference indicators (not used in decisions)──────────────────────────────────
+  // Disproven by backtest: margin Z≥2σ triggered only 5 times in ten years, in the wrong direction; HV30≥70th pct separation only +0.71pp.
+  // Adding them: Sharpe 0.41→0.40, drawdown -32.57%→-33.61%. Kept for display only.
+  const marginZ=(d.marginSlopeZ!=null?d.marginSlopeZ:calcSlopeZ([2.1,1.8,.9,.3,-.2,-.5,-1.1,d.marginChg||-.4]));
+  const marginSlope=d.marginChg||-.4;
+  const iv300=_aiOverrides.iv300||d.iv300||21.2,ivPct=d.ivPct||65;
+  const marginHot=marginZ>=2.0,ivHigh=ivPct>=70;
+
+  // ── Exposure mapping: L1 (TSF Δ) × L2 (crowding) only─────────────────
+  // Bands from revised backtest (2016-01~2026-07, 126 months): L1+L2 Sharpe 0.41,
+  // max drawdown -32.57%, total return +58.59%, best of all configurations.
+  const posDecision=(()=>{
+    if(creditNeg&&pcaCrowding>=80)
+      return{pct:'35–50%',desc:'Credit contraction confirmed + extreme crowding: 6-12 months of pressure ahead and valuation overstretched → reduce to 35–50%. ',scheme:'danger'};
+    if(creditNeg&&pcaCrowding>=60)
+      return{pct:'50–65%',desc:'Credit contraction confirmed (Δ<0 for 2 months) + rich valuation: Layer 1 points bearish for 6-12 months, thin cushion → reduce to 50–65%, leaving room to add.',scheme:'warn'};
+    if(creditNeg)
+      return{pct:'50–65%',desc:'Credit contraction confirmed (backtest: avg -2.02% over next 6M, win rate 36.8%) → reduce to 50–65%, avoiding medium-term downside.',scheme:'warn'};
+    if(creditPos&&pcaCrowding>=80)
+      return{pct:'55–70%',desc:'Credit expansion confirmed but valuation/turnover extreme → participate with risk control, exposure 55–70%. ',scheme:'warn'};
+    if(creditPos&&pcaCrowding>=60)
+      return{pct:'70–85%',desc:'Credit expansion confirmed, valuation rich but not extreme → exposure 70–85%, follow the medium-term uptrend.',scheme:'ok'};
+    if(creditPos)
+      return{pct:'80–95%',desc:'Credit expansion confirmed (backtest: avg +6.24% over next 6M, win rate 72.7%) + fair valuation → stay heavily invested.',scheme:'ok'};
+    if(pcaCrowding>=80)
+      return{pct:'45–60%',desc:'Layer 1 direction unconfirmed, but ERP very low + turnover very high → cushion too thin, reduce to 45–60%. ',scheme:'warn'};
+    if(pcaCrowding>=60)
+      return{pct:'60–75%',desc:'Layer 1 direction unconfirmed, valuation rich → exposure 60–75%, set stops.',scheme:'warn'};
+    return{pct:'70–85%',desc:'Layer 1 direction unconfirmed, valuation fair → exposure 70–85%, wait for Δ to hold its sign to confirm credit direction.',scheme:'ok'};
+  })();
+  const overallScheme=posDecision.scheme;    // Top badge reuses the exposure decision to avoid inconsistency
+  const overallLabel=overallScheme==='danger'?'High risk':overallScheme==='warn'?'Medium risk':'Low risk';
+  const accentColor=overallScheme==='danger'?'#dc2626':overallScheme==='warn'?'#d97706':'#0a7c52';
+  const set=(id,txt,color)=>{const e=$(id);if(e){e.textContent=txt;if(color)e.style.color=color;}};
+
+  // Data freshness: >6h red / >2h orange / otherwise green. Based on prebuilt JSON’s generated_at + decision model recompute time
+  const freshEl=$('dm-freshness');
+  if(freshEl){
+    const now=new Date();
+    const nowStr=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+    let dataAgeMin=null,dataMsg='';
+    if(_prebuiltData?.generated_at){
+      dataAgeMin=Math.round((Date.now()-new Date(_prebuiltData.generated_at).getTime())/60000);
+      dataMsg=dataAgeMin<60?dataAgeMin+' min ago':dataAgeMin<1440?(dataAgeMin/60).toFixed(1)+' h ago':(dataAgeMin/1440).toFixed(1)+' d ago';
+    }else{dataMsg='prebuilt not loaded';}
+    const scheme=dataAgeMin==null?'muted':dataAgeMin>360?'danger':dataAgeMin>120?'warn':'ok';
+    const clr={ok:'#0a7c52',warn:'#d97706',danger:'#dc2626',muted:'var(--muted)'}[scheme];
+    const staleTag=scheme==='danger'?' ⚠ Stale data, conclusions may be outdated':scheme==='warn'?' · try a manual ↻ Refresh':'';
+    freshEl.innerHTML='Decision model recomputed <strong>'+nowStr+'</strong> , based on data from <strong style="color:'+clr+'">'+dataMsg+'</strong> '+staleTag;
+    freshEl.style.color=clr;
+  }
+
+  // top badges
+  const tb=$('dm-top-badges');
+  // Overall risk = crowding (L2) 70% + credit direction (L1) 30%. Margin/HV30 no longer included (disproven)
+  const l1RiskPts=creditNeg?100:creditPos?0:50;
+  if(tb)tb.innerHTML=dmBadge('Overall risk '+Math.round(pcaCrowding*0.70+l1RiskPts*0.30)+'%',overallScheme)+' '+dmBadge(overallLabel,overallScheme);
+
+  // L1 — three states: expansion (green) / neutral (gray) / contraction (red)
+  const stColor={expansion:'#16a34a',contraction:'#dc2626',neutral:'#64748b'}[creditState];
+  const stBgSoft={expansion:'#f0fdf4',contraction:'#fff5f5',neutral:'#f8fafc'}[creditState];
+  const stBgTint={expansion:'rgba(22,163,74,.06)',contraction:'rgba(220,38,38,.06)',neutral:'rgba(148,163,184,.08)'}[creditState];
+  const stTextDark={expansion:'#0a7c52',contraction:'#991b1b',neutral:'#475569'}[creditState];
+  const stBoxBg={expansion:'#dcfce7',contraction:'#fee2e2',neutral:'#f1f5f9'}[creditState];
+  const stBoxBd={expansion:'#9ee6c8',contraction:'#fca5a5',neutral:'#cbd5e1'}[creditState];
+  const stBadge={expansion:['🟢 Expansion confirmed','ok'],contraction:['🔴 Contraction confirmed','danger'],neutral:['⚪ Not triggered','neutral']}[creditState];
+  const l1c=$('l1-card');if(l1c){l1c.style.borderColor=stColor;l1c.style.background=stBgSoft;}
+  const l1h=$('l1-header');if(l1h)l1h.style.background=stBgTint;
+  const tg=$('tl-green'),tr2=$('tl-red');
+  if(tg)tg.className='tl-dot '+(creditPos?'tl-active-green':'tl-inactive');
+  if(tr2)tr2.className='tl-dot '+(creditNeg?'tl-active-red':'tl-inactive');
+  const l1bt=$('l1-badge-top');
+  if(l1bt){
+    if(stBadge[1]==='neutral')l1bt.innerHTML='<span class="dm-badge" style="background:#e2e8f0;color:#475569">'+stBadge[0]+'</span>';
+    else l1bt.innerHTML=dmBadge(stBadge[0],stBadge[1]);
+  }
+  const statusText={
+    expansion:'Δ>0 for 2 months — credit expansion confirmed, positive for A-shares in 6-12 months (hit rate ~60%)',
+    contraction:'Δ<0 for 2 months — credit contraction confirmed, weighs on A-shares in 6-12 months',
+    neutral:'Not triggered — 1st derivative hasn’t held the same sign for 2 months; direction unconfirmed'
+  }[creditState];
+  set('l1-status-text',statusText,stTextDark);
+  set('l1-big-val',(impN>=0?'+':'')+impN.toFixed(2),stColor);
+  const subText={
+    expansion:'<strong style="color:#0a7c52">Conclusion: expansion confirmed.</strong> A-shares likely higher within 6-12 months; tactical signals are for short-term timing only.',
+    contraction:'<strong style="color:#991b1b">Conclusion: contraction confirmed.</strong> Bearish for the next 6-12 months; reduce as soon as tactical signals fire.',
+    neutral:'<strong style="color:#475569">Conclusion: direction unconfirmed.</strong> Waiting for 2 consecutive months ofΔ&gt;0 to confirm expansion, or consecutiveΔ&lt;0 to confirm contraction.'
+  }[creditState];
+  const l1sub=$('l1-sub-text');if(l1sub)l1sub.innerHTML=subText;
+  const spark=$('l1-spark');
+  if(spark){
+    const max=Math.max(...impHist.map(Math.abs),.01),n=impHist.length,cw=200/n,h=50,mid=h/2;
+    spark.innerHTML=impHist.map((v,i)=>{
+      const pos=v>=0,bh=Math.max(2,(Math.abs(v)/max)*(mid-4)),y=pos?mid-bh:mid;
+      const fill=Math.abs(v)<1e-6?'#94a3b8':(pos?'#16a34a':'#dc2626');
+      return '<rect x="'+(i*cw+1)+'" y="'+y+'" width="'+(cw-2)+'" height="'+bh+'" fill="'+fill+'" rx="1" opacity="'+(i===n-1?1:.55)+'"/>';
+    }).join('')+'<line x1="0" y1="25" x2="200" y2="25" stroke="#718096" stroke-width=".5" stroke-opacity=".3"/>';
+  }
+  const l1rb=$('l1-result-box');if(l1rb){l1rb.style.background=stBoxBg;l1rb.style.borderColor=stBoxBd;}
+  const l1rl=$('l1-result-label');if(l1rl){l1rl.style.color=stTextDark;l1rl.textContent=creditState==='neutral'?'Signal status':'Signal status';}
+  const resultVal={expansion:'Bullish confirmed',contraction:'Bearish confirmed',neutral:'Not triggered'}[creditState];
+  set('l1-result-val',resultVal,stColor);
+  const resultDesc={
+    expansion:'6-12 M upward bias (win rate 72.7%)',
+    contraction:'6-12 M under pressure (win rate 36.8%)',
+    neutral:'Direction pending; Layer 2 leads'
+  }[creditState];
+  set('l1-result-desc',resultDesc);
+
+  // L2
+  renderScatter(erpPct,turnoverPct);
+  const ps=$('pca-score-dm');if(ps){ps.textContent=pcaCrowding;ps.style.color=crowdingScheme==='danger'?'#dc2626':crowdingScheme==='warn'?'#d97706':'#16a34a';}
+  const eb=$('dm2-erp-bar'),tb2=$('dm2-turn-bar');
+  if(eb)eb.innerHTML=mkPb(erpPct>=70?'ok':erpPct>=40?'neutral':'danger',erpPct,'ERP percentile (weight 55%)',erpPct+'%');
+  if(tb2)tb2.innerHTML=mkPb(turnoverPct>=80?'danger':turnoverPct>=60?'warn':'ok',turnoverPct,'Turnover percentile (weight 45%)',turnoverPct+'%');
+  const l2ib=$('l2-interp-box'),l2it=$('l2-interp-title'),l2id=$('l2-interp-body');
+  const l2clr=crowdingScheme==='danger'?'#dc2626':crowdingScheme==='warn'?'#d97706':'#0a7c52';
+  if(l2ib){l2ib.style.background=crowdingScheme==='danger'?'#fff5f5':crowdingScheme==='warn'?'#fffbeb':'#f0fdf4';l2ib.style.borderColor=l2clr;}
+  if(l2it){l2it.textContent=pcaCrowding>=80?'Dot is in the danger zone':pcaCrowding>=60?'Dot leaning toward danger zone':'Dot is in the safe zone';l2it.style.color=l2clr;}
+  if(l2id)l2id.textContent=pcaCrowding>=80?'ERP very low + turnover very high: the market is both expensive and crowded. This is a genuine crowding signal.':pcaCrowding>=60?'Valuation is rich but trading isn’t extremely crowded yet.':'Valuation fair, trading normal, ample safety margin.';
+
+  // L3
+
+  // Slope color: positive = leveraging (green), negative = deleveraging (red was wrong, now gray/blue)
+  const slopeColor=marginSlope>0?'#0a7c52':marginSlope<-1?'#718096':'#94a3b8';
+  const l3mgv=$('l3-mg-val');if(l3mgv){l3mgv.textContent=marginSlope.toFixed(2);l3mgv.style.color=slopeColor;}
+
+  // Z score bar: negative Z (deleveraging) = ok/green, high positive Z (overheating) = warning/red
+  // pbar Width: map (Z+3)/6 to 0-100% so negative values show on the left
+  const zPbarPct=clamp((marginZ+3)/6*100,0,100);
+  const zScheme=marginZ>=2?'danger':marginZ>=1?'warn':marginZ<=0?'ok':'neutral';
+  const zInterpText=marginZ>=2?'Overheating, leveraging unusually fast':marginZ>=1?'Warm, keep an eye on it':marginZ<=0?'Deleveraging cycle, no overheating risk':'Mild, normal range';
+  const l3mgz=$('l3-mg-z-row');
+  if(l3mgz)l3mgz.innerHTML=mkPb(zScheme,zPbarPct,
+    'Z score (dynamic)= '+marginZ.toFixed(2)+'σ  trigger threshold ≥+2.0σ',
+    marginZ.toFixed(2)+'σ · '+zInterpText);
+
+  const l3mgc=$('l3-mg-chip');if(l3mgc){
+    const deleveraging=marginSlope<0&&!marginHot;
+    const chipText=marginHot?'Z>2σ(only 5 times in ten years, sample too small)'
+      :deleveraging?'🟢 deleveraging, Z='+marginZ.toFixed(2)+'σ'
+      :'slope normal';
+    const chipClass='standby';
+    const chipStyle=deleveraging?'background:#f0fdf4;color:#0a7c52;border-color:#9ee6c8':'';
+    l3mgc.innerHTML='<span class="alert-chip '+chipClass+'" style="'+chipStyle+'"><span class="alert-dot"></span>'+chipText+'</span>';
+  }
+  const l3ivv=$('l3-iv-val');if(l3ivv){l3ivv.textContent=iv300.toFixed(1)+'%  '+ivPct+'% pct';l3ivv.style.color=ivHigh?'#d97706':'#0a7c52';}
+  const l3ivn=$('l3-iv-needle');if(l3ivn)l3ivn.style.left=clamp((iv300-10)/30*100,2,96)+'%';
+  const l3ivc=$('l3-iv-chip');if(l3ivc){l3ivc.innerHTML='<span class="alert-chip standby"><span class="alert-dot"></span>'+(ivHigh?'HV30 Elevated (direction-agnostic, observation only)':'HV30 Normal')+'</span>';}
+
+  // Decision output
+  const docard=$('dm-decision-output');if(docard){docard.style.borderColor=accentColor;docard.style.background=overallScheme==='danger'?'#fff5f5':overallScheme==='warn'?'#fffbeb':'#f0fdf4';}
+  const drow=$('dm-do-row');
+  if(drow){
+    const cv=s=>({ok:'#0a7c52',warn:'#d97706',danger:'#dc2626'}[s]||'var(--text)');
+    const cvNeutral=s=>s==='neutral'?'#475569':cv(s);
+    const l1V=creditPos?'Expansion confirmed':creditNeg?'Contraction confirmed':'Direction unconfirmed';
+    const l1S=creditPos?'ok':creditNeg?'danger':'neutral';
+    drow.innerHTML=[
+      {l:'Layer 1 · Strategic Warning',v:l1V,s:l1S,sub:'TSF 1st derivative'},
+      {l:'Layer 2 · Safety Margin',v:pcaCrowding+'pts',s:crowdingScheme,sub:crowdingLabel},
+    ].map(it=>'<div class="do-cell"><div class="do-cell-label">'+it.l+'</div><div class="do-cell-val" style="color:'+cvNeutral(it.s)+'">'+it.v+'</div><div class="do-cell-sub">'+it.sub+'</div></div>').join('');
+  }
+  // posDecision already computed at top; render only here. Branch table (L1 × L2, 9 bands):
+  //   L1 contraction+L2 extreme(≥80) → 35-50%    L1 contraction+L2 rich(≥60) → 50-65%    L1 contraction → 50-65%
+  //   L1 expansion+L2 extreme       → 55-70%    L1 expansion+L2 rich       → 70-85%    L1 expansion → 80-95%
+  //   L2 extreme              → 45-60%    L2 rich            → 60-75%    default → 70-85%
+  const pb2={danger:{bg:'#fee2e2',bd:'#fca5a5',vc:'#dc2626'},warn:{bg:'#fef3c7',bd:'#f5cc6a',vc:'#d97706'},ok:{bg:'#e6f6f0',bd:'#9ee6c8',vc:'#0a7c52'}}[posDecision.scheme];
+  const posBox=$('dm-pos-box');if(posBox){posBox.style.background=pb2.bg;posBox.style.borderColor=pb2.bd;}
+  const posV=$('dm-pos-val');if(posV){posV.style.color=pb2.vc;posV.textContent=posDecision.pct;}
+  const posD=$('dm-pos-desc');if(posD){posD.style.color=pb2.vc;posD.textContent=posDecision.desc;}
+  $('dmpg').style.opacity='1';
+}
+
+/* ═══ AI VERIFY ═══ */
+function resolveFieldKey(item){
+  if(item.fieldKey==='peFullA'||item.fieldKey==='pe')return'peFullA';
+  if(item.fieldKey==='bond10y'||item.fieldKey==='bond_10y'||item.fieldKey==='yield10y')return'bond10y';
+  const n=(item.name||'').toLowerCase();
+  if(n.includes('pe')||n.includes('市盈'))return'peFullA';
+  if(n.includes('国债')||n.includes('yield')||n.includes('bond'))return'bond10y';
+  return item.fieldKey||null;
+}
+function applyAICorrection(fieldKey,aiValue,displayId,subtextId,corrTagId,decimals,suffix){
+  const orig=window._D?.[fieldKey];if(orig==null)return false;
+  const pctDiff=Math.abs((aiValue-orig)/orig);
+  if(pctDiff>0.02){
+    _aiOverrides[fieldKey]=aiValue;
+    const e=$(displayId);if(e)e.textContent=aiValue.toFixed(decimals)+suffix;
+    const ct=$(corrTagId);if(ct)ct.style.display='inline-block';
+    const ms=$(subtextId);if(ms)ms.textContent='original '+orig.toFixed(decimals)+suffix+' → corrected to '+aiValue.toFixed(decimals)+suffix+' (diff '+(pctDiff*100).toFixed(1)+'%)';
+    const card=document.querySelector('#'+displayId)?.closest?.('.mc');if(card){card.classList.remove('ai-verified','ai-verifying');card.classList.add('ai-corrected');}
+    const pe2=_aiOverrides.peFullA||window._D?.peFullA,bd=_aiOverrides.bond10y||window._D?.bond10y;
+    if(pe2&&bd){
+      const ne=+((1/pe2-bd/100)*100).toFixed(2),np=Math.round(Math.min(100,Math.max(0,(ne-2.0)/(7.0-2.0)*100)));
+      const ev=$('erp-val');if(ev){ev.textContent=ne+'%';ev.className='erp-val '+(np>=90?'c-danger':np>=70?'c-warn':'c-ok');}
+      const ed=$('erp-detail');if(ed)ed.textContent='1/'+pe2.toFixed(2)+' − '+bd.toFixed(2)+'%';
+      const ep=$('erp-pct');if(ep){ep.textContent=np+'%';ep.className='erp-pct-big '+(np>=90?'c-danger':np>=70?'c-warn':'c-ok');}
+      const pg=$('pct-grad');if(pg)pg.style.width=np+'%';const pn=$('pct-needle');if(pn)pn.style.left=np+'%';
+      const ect=$('erp-corr-tag');if(ect)ect.style.display='inline-block';
+      if(fieldKey==='bond10y')renderBondTrendChart(aiValue);
+    }
+    if(window._D)renderDecisionModel(window._D);
+    return true;
+  }
+  return false;
+}
+async function aiCall(body,retries=3){
+  for(let i=0;i<retries;i++){
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(resp.status===429){const ms=(i+1)*8000;$('ai-body').innerHTML='<div class="ai-thinking"><div class="dots"><span></span><span></span><span></span></div>Too many requests, waiting '+(ms/1000)+'s before retry...</div>';await new Promise(r=>setTimeout(r,ms));continue;}
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    return resp;
+  }
+  throw new Error('HTTP 429 Rate limit exceeded, please try again later');
+}
+let _aiRunning=false;
+async function runAIVerify(){
+  if(_aiRunning)return;_aiRunning=true;_lastAI=Date.now();
+  const btn=$('btn-ai');if(btn){btn.classList.add('running');btn.textContent='⟳ Verifying...';}
+  ['mc-pe','mc-bond'].forEach(id=>{const e=$(id);if(e)e.classList.add('ai-verifying');});
+  $('ai-body').innerHTML='<div class="ai-thinking"><div class="dots"><span></span><span></span><span></span></div>Claude Searching for the latest market data...</div>';
+  const today=new Date().toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'});
+  const curPE=(_aiOverrides.peFullA||window._D?.peFullA||16.87).toFixed(2);
+  const curBond=(_aiOverrides.bond10y||window._D?.bond10y||1.78).toFixed(2);
+  try{
+    const resp=await aiCall({model:'claude-sonnet-4-20250514',max_tokens:800,
+      system:'You are an analyst cross-checking A-share market data. Return JSON only, no markdown or extra text.',
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:'Today:'+today+'. Dashboard data: PE='+curPE+'x, 10Y treasury='+curBond+'%. Search the latest public data and verify. Return JSON:{"ts":"'+today+'","items":[{"name":"metric","fieldKey":"peFullA or bond10y","dash_val":number,"found_val":number,"src":"source","status":"match|diff","note":"note"}],"summary":"assessment","corrections":0}'}]});
+    const data=await resp.json();
+    let txt='';for(const b of data.content){if(b.type==='text')txt+=b.text;}
+    let result=null;try{const m=txt.match(/\{[\s\S]*\}/);if(m)result=JSON.parse(m[0]);}catch(e){}
+    ['mc-pe','mc-bond'].forEach(id=>{const e=$(id);if(e)e.classList.remove('ai-verifying');});
+    if(result?.items){
+      const corrected=[];
+      for(const item of result.items){
+        const fk=resolveFieldKey(item);
+        const fv=typeof item.found_val==='number'?item.found_val:parseFloat(item.found_val);
+        if(fk&&!isNaN(fv)&&fv>0){
+          let ok=false;
+          if(fk==='peFullA')ok=applyAICorrection('peFullA',fv,'m-pe','m-pe-s','pe-corr-tag',2,'x');
+          else if(fk==='bond10y')ok=applyAICorrection('bond10y',fv,'m-bond','m-bond-s','bond-corr-tag',2,'%');
+          if(ok){item.corrected=true;corrected.push(item.name);}
+        }
+        if(item.status==='match'&&!item.corrected){const cid=({peFullA:'mc-pe',bond10y:'mc-bond'})[fk];if(cid){const e=$(cid);if(e){e.classList.remove('ai-verifying');e.classList.add('ai-verified');}}}
+      }
+      const diffN=result.items.filter(x=>x.status==='diff').length,corrN=corrected.length;
+      const rows=result.items.map(item=>{
+        const fk=resolveFieldKey(item);
+        const sc=item.corrected?'<span class="st-corr">⚡ corrected</span>':item.status==='match'?'<span class="st-match">✓ match</span>':'<span class="st-diff">⚠ diff</span>';
+        const fv=typeof item.found_val==='number'?item.found_val.toFixed(3):String(item.found_val);
+        const dv=typeof item.dash_val==='number'?item.dash_val.toFixed(3):String(item.dash_val);
+        return '<tr style="'+(item.corrected?'background:rgba(249,115,22,.06)':'')+'"><td style="font-weight:600">'+esc(item.name)+'</td><td>'+esc(dv)+'</td><td style="font-weight:700;color:'+(item.corrected?'#ea580c':item.status==='diff'?'var(--warn)':'var(--text)')+'">'+esc(fv)+'</td><td><span class="src-tag">'+esc(item.src||'—')+'</span></td><td>'+sc+'</td><td style="color:var(--muted);font-size:9px">'+esc(item.note||'')+'</td></tr>';
+      }).join('');
+      $('ai-body').innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'+(corrN>0?'<span class="st-corr">⚡ auto-corrected '+corrN+' items</span>':'<span class="st-match">✓ Data consistent</span>')+'<span class="src-tag">'+esc(result.ts)+'</span><span style="font-size:10px;color:var(--muted)">'+result.items.filter(x=>x.status==='match').length+'match · '+diffN+'differ</span></div><div style="overflow-x:auto"><table class="ver-tbl"><thead><tr><th>Metric</th><th>Dashboard</th><th>AI search</th><th>Source</th><th>Status</th><th>Note</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(result.summary?'<div style="margin-top:8px;padding:6px 10px;background:rgba(99,102,241,.08);border-radius:6px;border-left:2px solid #6366f1;font-size:11px;color:#312e81;line-height:1.7">'+esc(result.summary)+'</div>':'');
+    }else{$('ai-body').innerHTML='<div style="font-size:11px;color:#5b21b6;font-family:var(--mono);white-space:pre-wrap;line-height:1.7">'+esc(txt||'No results')+'</div>';}
+    const tsEl=$('ai-verify-ts');if(tsEl)tsEl.textContent='Verified '+[new Date().getHours(),new Date().getMinutes(),new Date().getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+    const lastEl=$('ai-last-ts');if(lastEl)lastEl.textContent='Last AI check '+[new Date().getHours(),new Date().getMinutes()].map(n=>String(n).padStart(2,'0')).join(':');
+  }catch(e){
+    $('ai-body').innerHTML='<div style="font-size:11px;color:var(--danger);font-family:var(--mono);padding:6px 0">⚠ AI Verification failed:'+esc(e.message)+'</div>';
+    ['mc-pe','mc-bond'].forEach(id=>{const e=$(id);if(e)e.classList.remove('ai-verifying');});
+  }
+  _aiRunning=false;if(btn){btn.classList.remove('running');btn.textContent='🤖 AI Verify';}
+}
+
+/* ═══ MAIN RENDER ═══ */
+function render(d){
+  window._D=d;
+  const pe=_aiOverrides.peFullA||d.peFullA,bd=_aiOverrides.bond10y||d.bond10y;
+  const erp=+((1/pe-bd/100)*100).toFixed(2),erpPct=Math.round(Math.min(100,Math.max(0,(erp-2.0)/(7.0-2.0)*100)));
+  const set=(id,txt,color)=>{const e=$(id);if(e){e.textContent=txt;if(color)e.style.color=color;}};
+  set('erp-detail','1/'+pe.toFixed(2)+' − '+bd.toFixed(2)+'%');
+  const ev=$('erp-val');if(ev){ev.textContent=erp.toFixed(2)+'%';ev.className='erp-val '+(erpPct>=90?'c-danger':erpPct>=70?'c-warn':'c-ok');}
+  const ep=$('erp-pct');if(ep){ep.textContent=erpPct+'%';ep.className='erp-pct-big '+(erpPct>=90?'c-danger':erpPct>=70?'c-warn':'c-ok');}
+  const pg=$('pct-grad');if(pg)pg.style.width=erpPct+'%';
+  const pn=$('pct-needle');if(pn)pn.style.left=erpPct+'%';
+  mc('m-pe',pe.toFixed(2)+'x','Wind All-A','c-accent');
+  {const bondSubtxt=_prebuiltData?.bond10y?'China 10Y treasury · prebuilt':'China 10Y Treasury';mc('m-bond',bd.toFixed(2)+'%',bondSubtxt,'c-muted');}
+  {const bondCard=$('mc-bond');if(bondCard){const bdg=bondCard.querySelector('.vbadge');if(bdg){bdg.textContent=_prebuiltData?.bond10y?'AKShare prebuilt':'public value';bdg.className='vbadge '+(_prebuiltData?.bond10y?'vb-ok':'vb-est');}}}
+  mc('m-pb',d.pbRatio.toFixed(1)+'%','threshold 10%'+(d.pbRatio>=10?' ⚡':''),d.pbRatio>=10?'c-danger':d.pbRatio>=8?'c-warn':'c-ok');
+  ['mc-pe','mc-bond','mc-pb'].forEach(flashMC);
+  renderIV(d.iv300,d.ivPct,d.ivSrc);
+  const sfv=$('sf-verify');if(sfv&&d.sfData&&d.sfData.length){const sfLast=d.sfData[d.sfData.length-1];
+    const sfIsPrebuilt=_prebuiltData?.m2_monthly&&_prebuiltData.m2_monthly.length>=4;
+    const sfIsLive=d.sfDataIsLive||sfIsPrebuilt;
+    const sfLabel=sfIsLive?'TSF stock YoY (AKShare basis, differs from PBoC by≈1pp): ':'TSF stock growth (PBoC):';
+    const sfBadge=sfIsLive?'#dcfce7;color:#166534':'#fef3c7;color:#92400e';
+    const sfBadgeTxt=sfIsPrebuilt?'prebuilt · daily':'AKShare live';
+    sfv.innerHTML='<strong>'+sfLabel+'</strong>'
+      +d.sfData.slice(-5).map(x=>x.m+':'+x.g+'%').join(' | ')
+      +'<br>Latest:'+sfLast.m+' = <strong>'+sfLast.g+'%</strong>'
+      +' <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);background:'+sfBadge+'">'+sfBadgeTxt+'</span>';
+  }
+  if(d.impulse&&d.impulse.length){
+    const impN=d.impulse[d.impulse.length-1],impP=d.impulse[d.impulse.length-2]||0;
+    const expC=impN>0&&impP>0,conC=impN<0&&impP<0;
+    const stateC=expC?'var(--ok)':conC?'var(--danger)':'var(--muted)';
+    const stateT=expC?'Expansion confirmed':conC?'Contraction confirmed':'Not triggered';
+    set('ci-now',(impN>=0?'+':'')+impN.toFixed(2),impN>0?'var(--ok)':impN<0?'var(--danger)':'var(--muted)');
+    set('ci-prev',(impP>=0?'+':'')+impP.toFixed(2));
+    set('ci-trend',stateT,stateC);
+  }
+  if(d.sectors)renderHeatmap(d.sectors);
+  requestAnimationFrame(()=>{
+    renderVolChart(d);renderBondTrendChart(bd);renderCreditChart(d);renderMarginChart(d);
+    renderDecisionModel(d);
+  });
+}
+
+/* ═══ LOAD ═══ */
+async function loadData(force=false,_isRetry=false){
+  try{
+    // Probe backend JSON version first: if newer than cache, cache is dropped automatically
+    const curGen=await probePrebuiltGen();
+    if(!force){const c=loadC(curGen);if(c){setL('Loaded cache ('+c.age+'min ago)','');apply(c.d,true,c.age);return;}}
+    let data=null;
+    try{data=await fetchAll(force);}catch(e){console.warn('fetchAll:',e);}
+    // Startup fallback: right after proxy/WSL networking starts, fetches often fail (DNS not ready, etc).
+    // If the first load fails completely (no data and no cache), retry once after 5s so the user doesn’t have to refresh.
+    if(!data&&!_isRetry){
+      const c0=loadC();
+      if(!c0){
+        setL('Data sources may still be starting; retrying in 5s…','');
+        await new Promise(r=>setTimeout(r,5000));
+        return loadData(force,true);
+      }
+    }
+    if(!data){const c=loadC();data=c?c.d:{...getStatic(),erp:4.15,erpPct:43,totalVolWanYi:0,avgTurn:0,ma250yi:0,volRatio:null,volSource:'Waiting for data...',shKlines:[]};}
+    else saveC(data,_prebuiltData?.generated_at);
+    apply(data,false,0);
+    if(_aiOnRefresh)setTimeout(runAIVerify,600);
+  }catch(e){
+    console.error('loadData:',e);
+    try{apply({...getStatic(),erp:4.15,erpPct:43,totalVolWanYi:0,avgTurn:0,ma250yi:0,volRatio:null,volSource:'Load failed',shKlines:[]},true,-1);}catch(e2){console.error(e2);}
+  }finally{const ldr=$('loader');if(ldr)ldr.classList.add('gone');}
+}
+function apply(d,fromCache,age){
+  try{render(d);}catch(e){console.error('render:',e);}
+  // ETF Category flows aren’t in the main data cache, so render separately here to cover both cached and live paths
+  try{fetchETFCategories().then(ec=>{if(ec)renderETFCategories(ec);}).catch(()=>{});}catch(e){}
+  const now=new Date();
+  const tstr=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  const dstr=(now.getMonth()+1)+'/'+(now.getDate());
+  const ts=$('ts');if(ts)ts.textContent=dstr+' '+tstr;
+  const sdot=$('sdot');if(sdot)sdot.className='dot '+(fromCache?'dot-cache':'dot-live');
+  const stxt=$('stxt');if(stxt)stxt.textContent=fromCache?(age>=0?'cached'+age+'m ago':'static fallback'):'live';
+  const pbAge=_prebuiltData?.generated_at?Math.round((Date.now()-new Date(_prebuiltData.generated_at).getTime())/60000):-1;
+  const pbNote=pbAge>=0?'  Prebuilt data generated at'+(pbAge<60?pbAge+'min ago':Math.round(pbAge/60)+'h ago')+'. ':'';
+  const cnote=$('cnote');if(cnote)cnote.textContent=fromCache?'Cached data ('+age+'min ago).':'✓ Source:'+d.volSource+'. '+pbNote;
+  const pg=$('pg');if(pg)pg.style.opacity='1';
+}
+document.addEventListener('visibilitychange',()=>{
+  // Page back in foreground: probe backend version, refetch if cache expired or version changed
+  if(document.visibilityState==='visible'){probePrebuiltGen().then(g=>{if(!loadC(g))loadData();});if(!_aiRunning&&typeof _aiInterval==='number'&&_aiInterval>0&&Date.now()-_lastAI>_aiInterval*1000)runAIVerify();}
+});
+/* ═══ Download local version ═══ */
+function downloadHTML(){
+  const blob=new Blob([document.documentElement.outerHTML],{type:'text/html'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='arisk_monitor_local.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ═══ Environment check ═══ */
+async function detectEnv(){
+  // Use /pe endpoint to check the proxy (replaces blocked push2)
+  try{
+    const r=await Promise.race([
+      fetch('http://localhost:8899/pe',{cache:'no-cache'}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),3000))
+    ]);
+    return r.ok;
+  }catch(e){return false;}
+}
+
+function showEnvBanner(isLive){
+  // remove old banner
+  document.querySelectorAll('.env-banner').forEach(e=>e.remove());
+  if(isLive)return;   // hidden in live mode banner
+  const b=document.createElement('div');
+  b.className='env-banner';
+  b.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:200;background:#1e293b;color:#94a3b8;font-family:monospace;font-size:11px;padding:8px 20px;display:flex;align-items:center;gap:14px;border-top:1px solid #334155';
+  b.innerHTML=`
+    <span style="color:#f59e0b;font-weight:700">⚠ Sandbox mode</span>
+    <span>Running in the Claude.ai sandbox; cross-origin requests are blocked by CSP, so all data is<strong style="color:#fbbf24">static fallback values</strong>.</span>
+    <span style="color:#60a5fa">→ Download the HTML and open it locally, or deploy to Vercel/Render, to get all live data.</span>
+    <button onclick="this.parentNode.remove()" style="margin-left:auto;background:transparent;border:1px solid #475569;color:#94a3b8;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:10px">×</button>
+  `;
+  document.body.appendChild(b);
+}
+
+window.addEventListener('load',async ()=>{
+  const fb={...getStatic(),erp:4.15,erpPct:43,totalVolWanYi:0,avgTurn:0,ma250yi:0,volRatio:null,volSource:'loading...',shKlines:[]};
+  apply(fb,true,-1);
+
+  // Detect environment first, then decide whether to actually fetchAll
+  const isLive=await detectEnv();
+  showEnvBanner(isLive);
+
+  if(isLive){
+    // Live environment: clear any static cache and force refetch
+    try{
+      const cached=JSON.parse(localStorage.getItem(CKEY)||'null');
+      // If cached peFullA is still the static initial value, live data was never fetched; clear it
+      if(cached&&cached.d?.peFullA===16.87&&cached.d?.bond10y===1.78){
+        localStorage.removeItem(CKEY);
+        console.log('[arisk] Static cache detected and cleared; refetching live data');
+      }
+    }catch(e){}
+    loadData(false);
+  }else{
+    // Sandbox: use static data directly instead of waiting on requests that will fail fetch
+    const c=loadC();
+    if(c)apply(c.d,true,c.age);
+    else apply(fb,true,-1);
+    const ldr=document.getElementById('loader');
+    if(ldr)ldr.classList.add('gone');
+  }
+
+  applyRefreshSetting();
+  applyAISetting();
+});
+</script></body></html>

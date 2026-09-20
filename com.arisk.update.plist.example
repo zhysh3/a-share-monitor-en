@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- macOS auto-update template. Usage:
+     1. Replace every __ARISK_DIR__ below with this repo’s absolute path (e.g. /Users/yourname/arisk)
+        sed "s|__ARISK_DIR__|$HOME/arisk|g" com.arisk.update.plist.example > com.arisk.update.plist
+     2. cp com.arisk.update.plist ~/Library/LaunchAgents/
+     3. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.arisk.update.plist
+     Linux users can use cron instead: 10 16-22 * * * /bin/bash __ARISK_DIR__/check_and_update.sh -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.arisk.update</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__ARISK_DIR__/check_and_update.sh</string>
+  </array>
+
+  <!-- Daily at 16:10 / 17:10 / … / 22:10 runs the check each time.
+       check_and_update.sh Internally: data current → exit immediately; behind → fetch today’s close data. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>16</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>10</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>__ARISK_DIR__/logs/launchd_update.log</string>
+  <key>StandardErrorPath</key>
+  <string>__ARISK_DIR__/logs/launchd_update.err</string>
+</dict>
+</plist>
